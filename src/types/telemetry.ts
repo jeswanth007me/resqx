@@ -1,0 +1,2 @@
+import type { Point, SignalState } from './simulation';
+export interface Telemetry { timestamp: number; ambulance: { id: string; position: Point; speed: number; destination: string; eta: number; emergencyStatus: string }; route: { currentRoad: string; nextSignal: string | null; remainingDistance: number }; signals: Array<{ id: string; state: SignalState; distanceFromAmbulance: number; queueLength: number }>; traffic: { vehicleCount: number; congestionLevel: 'LOW' | 'MODERATE' | 'HIGH' } }

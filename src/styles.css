@@ -1,0 +1,157 @@
+/* ─── Google Fonts (Must precede all other statements) ───────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
+
+@import "tailwindcss";
+
+/* ─── Stitch EOCC Design Tokens ──────────────────────────────────── */
+@theme {
+  /* Surface Hierarchy */
+  --color-background: #0B1326;
+  --color-surface: #0B1326;
+  --color-surface-dim: #0B1326;
+  --color-surface-bright: #31394D;
+  --color-surface-container-lowest: #060E20;
+  --color-surface-container-low: #131B2E;
+  --color-surface-container: #171F33;
+  --color-surface-container-high: #222A3D;
+  --color-surface-container-highest: #2D3449;
+  --color-surface-variant: #2D3449;
+  --color-surface-tint: #FFB3AD;
+
+  /* Primary (Emergency Red family) */
+  --color-primary: #FFB3AD;
+  --color-primary-container: #FF5451;
+  --color-on-primary: #68000A;
+  --color-on-primary-container: #5C0008;
+  --color-primary-fixed: #FFDAD7;
+  --color-primary-fixed-dim: #FFB3AD;
+  --color-on-primary-fixed: #410004;
+  --color-on-primary-fixed-variant: #930013;
+  --color-inverse-primary: #B91A24;
+
+  /* Secondary (Success Green family) */
+  --color-secondary: #4EDEA3;
+  --color-secondary-container: #00A572;
+  --color-on-secondary: #003824;
+  --color-on-secondary-container: #00311F;
+  --color-secondary-fixed: #6FFBBE;
+  --color-secondary-fixed-dim: #4EDEA3;
+  --color-on-secondary-fixed: #002113;
+  --color-on-secondary-fixed-variant: #005236;
+
+  /* Tertiary (Warning Amber family) */
+  --color-tertiary: #FFB95F;
+  --color-tertiary-container: #CA8100;
+  --color-on-tertiary: #472A00;
+  --color-on-tertiary-container: #3E2400;
+  --color-tertiary-fixed: #FFDDB8;
+  --color-tertiary-fixed-dim: #FFB95F;
+  --color-on-tertiary-fixed: #2A1700;
+  --color-on-tertiary-fixed-variant: #653E00;
+
+  /* Error */
+  --color-error: #FFB4AB;
+  --color-error-container: #93000A;
+  --color-on-error: #690005;
+  --color-on-error-container: #FFDAD6;
+
+  /* Text */
+  --color-on-surface: #DAE2FD;
+  --color-on-surface-variant: #E4BEBA;
+  --color-on-background: #DAE2FD;
+
+  /* Borders */
+  --color-outline: #AB8986;
+  --color-outline-variant: #5B403E;
+
+  /* Inverse */
+  --color-inverse-surface: #DAE2FD;
+  --color-inverse-on-surface: #283044;
+
+  /* Typography — Font Families */
+  --font-headline: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-data: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Spacing */
+  --spacing-unit: 4px;
+  --spacing-gutter: 16px;
+  --spacing-margin: 24px;
+  --spacing-panel: 20px;
+}
+
+/* ─── Base Resets ─────────────────────────────────────────────────── */
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    overscroll-behavior: none;
+    overflow-x: hidden;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* Hide scrollbars by default (Stitch pattern) */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom thin scrollbars for panels that need them */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    display: block;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-surface-variant);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-outline-variant);
+  }
+}
+
+/* ─── Glass Panel Utilities ──────────────────────────────────────── */
+@layer utilities {
+  .glass-panel {
+    background: rgba(23, 31, 51, 0.6);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(218, 226, 253, 0.1);
+  }
+
+  .control-bar {
+    background: rgba(19, 27, 46, 0.8);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(218, 226, 253, 0.1);
+  }
+}
+
+/* ─── Material Symbols ───────────────────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ─── Keyframe Animations ────────────────────────────────────────── */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
