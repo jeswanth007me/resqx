@@ -1,10 +1,12 @@
 import { useLocale } from '../i18n/useLocale';
 import type { Locale } from '../i18n/strings';
+import type { ConnectionStatus } from '../telemetry/useResQXTelemetry';
 import { formatTime } from '../utils/formatTime';
 
 interface AppHeaderProps {
   activeTab: string;
   simulationTime: number;
+  connectionStatus: ConnectionStatus;
   onTabChange?: (tab: string) => void;
 }
 
@@ -18,8 +20,9 @@ const navTabs = [
 
 const localeLabels: Record<Locale, string> = { en: 'EN', te: 'TL', hi: 'HI' };
 
-export function AppHeader({ activeTab, simulationTime, onTabChange }: AppHeaderProps) {
+export function AppHeader({ activeTab, simulationTime, connectionStatus, onTabChange }: AppHeaderProps) {
   const { locale, setLocale, t } = useLocale();
+  const isConnected = connectionStatus === 'CONNECTED';
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 z-50 glass-panel flex items-center justify-between px-[var(--spacing-margin)]">
@@ -34,8 +37,10 @@ export function AppHeader({ activeTab, simulationTime, onTabChange }: AppHeaderP
             {t.header.systemStatus}
           </span>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-            <span className="font-data text-on-surface text-sm">{t.header.operational}</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-secondary animate-pulse' : 'bg-error'}`} />
+            <span className="font-data text-on-surface text-sm">
+              {isConnected ? 'SUMO LIVE' : 'SUMO DISCONNECTED'}
+            </span>
           </div>
         </div>
       </div>

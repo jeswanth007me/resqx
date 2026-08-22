@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-08-21T20:26:50.823870+05:30 by Eclipse SUMO netconvert 1.27.1
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="nodes.nod.xml"/>
+        <edge-files value="edges.edg.xml"/>
+    </input>
+
+    <output>
+        <output-file value="network.net.xml"/>
+    </output>
+
+</netconvertConfiguration>
+-->
+
+<net version="1.20" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="100.00,0.00" convBoundary="0.00,0.00,200.00,300.00" origBoundary="-100.00,0.00,100.00,300.00" projParameter="!"/>
+
+    <edge id=":SIG-01_0" function="internal">
+        <lane id=":SIG-01_0_0" index="0" speed="13.89" length="11.20" shape="95.20,204.00 95.20,192.80"/>
+        <lane id=":SIG-01_0_1" index="1" speed="13.89" length="11.20" shape="98.40,204.00 98.40,192.80"/>
+    </edge>
+    <edge id=":SIG-01_2" function="internal">
+        <lane id=":SIG-01_2_0" index="0" speed="6.51" length="9.03" shape="98.40,204.00 98.75,201.55 99.80,199.80 101.55,198.75 104.00,198.40"/>
+    </edge>
+    <edge id=":SIG-01_3" function="internal">
+        <lane id=":SIG-01_3_0" index="0" speed="6.51" length="9.03" shape="89.60,198.40 92.05,198.05 93.80,197.00 94.85,195.25 95.20,192.80"/>
+    </edge>
+    <edge id=":SIG-01_4" function="internal">
+        <lane id=":SIG-01_4_0" index="0" speed="11.11" length="14.40" shape="89.60,198.40 104.00,198.40"/>
+    </edge>
+    <edge id=":SIG-02_0" function="internal">
+        <lane id=":SIG-02_0_0" index="0" speed="13.89" length="11.20" shape="95.20,104.00 95.20,92.80"/>
+        <lane id=":SIG-02_0_1" index="1" speed="13.89" length="11.20" shape="98.40,104.00 98.40,92.80"/>
+    </edge>
+    <edge id=":SIG-02_2" function="internal">
+        <lane id=":SIG-02_2_0" index="0" speed="6.51" length="9.03" shape="98.40,104.00 98.75,101.55 99.80,99.80 101.55,98.75 104.00,98.40"/>
+    </edge>
+    <edge id=":SIG-02_3" function="internal">
+        <lane id=":SIG-02_3_0" index="0" speed="6.51" length="9.03" shape="89.60,98.40 92.05,98.05 93.80,97.00 94.85,95.25 95.20,92.80"/>
+    </edge>
+    <edge id=":SIG-02_4" function="internal">
+        <lane id=":SIG-02_4_0" index="0" speed="11.11" length="14.40" shape="89.60,98.40 104.00,98.40"/>
+    </edge>
+
+    <edge id="E_CORRIDOR_1" from="N_START" to="SIG-01" priority="2">
+        <lane id="E_CORRIDOR_1_0" index="0" speed="13.89" length="96.00" shape="95.20,300.00 95.20,204.00"/>
+        <lane id="E_CORRIDOR_1_1" index="1" speed="13.89" length="96.00" shape="98.40,300.00 98.40,204.00"/>
+    </edge>
+    <edge id="E_CORRIDOR_2" from="SIG-01" to="SIG-02" priority="2">
+        <lane id="E_CORRIDOR_2_0" index="0" speed="13.89" length="88.80" shape="95.20,192.80 95.20,104.00"/>
+        <lane id="E_CORRIDOR_2_1" index="1" speed="13.89" length="88.80" shape="98.40,192.80 98.40,104.00"/>
+    </edge>
+    <edge id="E_CORRIDOR_3" from="SIG-02" to="HOSPITAL" priority="2">
+        <lane id="E_CORRIDOR_3_0" index="0" speed="13.89" length="92.80" shape="95.20,92.80 95.20,0.00"/>
+        <lane id="E_CORRIDOR_3_1" index="1" speed="13.89" length="92.80" shape="98.40,92.80 98.40,0.00"/>
+    </edge>
+    <edge id="E_CROSS1_IN" from="SIG01_W" to="SIG-01" priority="1">
+        <lane id="E_CROSS1_IN_0" index="0" speed="11.11" length="89.60" shape="0.00,198.40 89.60,198.40"/>
+    </edge>
+    <edge id="E_CROSS1_OUT" from="SIG-01" to="SIG01_E" priority="1">
+        <lane id="E_CROSS1_OUT_0" index="0" speed="11.11" length="96.00" shape="104.00,198.40 200.00,198.40"/>
+    </edge>
+    <edge id="E_CROSS2_IN" from="SIG02_W" to="SIG-02" priority="1">
+        <lane id="E_CROSS2_IN_0" index="0" speed="11.11" length="89.60" shape="0.00,98.40 89.60,98.40"/>
+    </edge>
+    <edge id="E_CROSS2_OUT" from="SIG-02" to="SIG02_E" priority="1">
+        <lane id="E_CROSS2_OUT_0" index="0" speed="11.11" length="96.00" shape="104.00,98.40 200.00,98.40"/>
+    </edge>
+
+    <tlLogic id="SIG-01" type="static" programID="0" offset="0">
+        <phase duration="42" state="GGGrr"/>
+        <phase duration="3"  state="yyyrr"/>
+        <phase duration="42" state="rrrGG"/>
+        <phase duration="3"  state="rrryy"/>
+    </tlLogic>
+    <tlLogic id="SIG-02" type="static" programID="0" offset="0">
+        <phase duration="42" state="GGGrr"/>
+        <phase duration="3"  state="yyyrr"/>
+        <phase duration="42" state="rrrGG"/>
+        <phase duration="3"  state="rrryy"/>
+    </tlLogic>
+
+    <junction id="HOSPITAL" type="dead_end" x="100.00" y="0.00" incLanes="E_CORRIDOR_3_0 E_CORRIDOR_3_1" intLanes="" shape="93.60,0.00 100.00,0.00"/>
+    <junction id="N_START" type="dead_end" x="100.00" y="300.00" incLanes="" intLanes="" shape="100.00,300.00 93.60,300.00"/>
+    <junction id="SIG-01" type="traffic_light" x="100.00" y="200.00" incLanes="E_CORRIDOR_1_0 E_CORRIDOR_1_1 E_CROSS1_IN_0" intLanes=":SIG-01_0_0 :SIG-01_0_1 :SIG-01_2_0 :SIG-01_3_0 :SIG-01_4_0" shape="93.60,204.00 100.00,204.00 100.44,201.78 101.00,201.00 101.78,200.44 102.78,200.11 104.00,200.00 104.00,196.80 101.78,196.36 101.00,195.80 100.44,195.02 100.11,194.02 100.00,192.80 93.60,192.80 93.16,195.02 92.60,195.80 91.82,196.36 90.82,196.69 89.60,196.80 89.60,200.00 91.82,200.44 92.60,201.00 93.16,201.78 93.49,202.78">
+        <request index="0" response="00000" foes="11000" cont="0"/>
+        <request index="1" response="00000" foes="11000" cont="0"/>
+        <request index="2" response="00000" foes="10000" cont="0"/>
+        <request index="3" response="00011" foes="00011" cont="0"/>
+        <request index="4" response="00111" foes="00111" cont="0"/>
+    </junction>
+    <junction id="SIG-02" type="traffic_light" x="100.00" y="100.00" incLanes="E_CORRIDOR_2_0 E_CORRIDOR_2_1 E_CROSS2_IN_0" intLanes=":SIG-02_0_0 :SIG-02_0_1 :SIG-02_2_0 :SIG-02_3_0 :SIG-02_4_0" shape="93.60,104.00 100.00,104.00 100.44,101.78 101.00,101.00 101.78,100.44 102.78,100.11 104.00,100.00 104.00,96.80 101.78,96.36 101.00,95.80 100.44,95.02 100.11,94.02 100.00,92.80 93.60,92.80 93.16,95.02 92.60,95.80 91.82,96.36 90.82,96.69 89.60,96.80 89.60,100.00 91.82,100.44 92.60,101.00 93.16,101.78 93.49,102.78">
+        <request index="0" response="00000" foes="11000" cont="0"/>
+        <request index="1" response="00000" foes="11000" cont="0"/>
+        <request index="2" response="00000" foes="10000" cont="0"/>
+        <request index="3" response="00011" foes="00011" cont="0"/>
+        <request index="4" response="00111" foes="00111" cont="0"/>
+    </junction>
+    <junction id="SIG01_E" type="dead_end" x="200.00" y="200.00" incLanes="E_CROSS1_OUT_0" intLanes="" shape="200.00,196.80 200.00,200.00"/>
+    <junction id="SIG01_W" type="dead_end" x="0.00" y="200.00" incLanes="" intLanes="" shape="0.00,200.00 0.00,196.80"/>
+    <junction id="SIG02_E" type="dead_end" x="200.00" y="100.00" incLanes="E_CROSS2_OUT_0" intLanes="" shape="200.00,96.80 200.00,100.00"/>
+    <junction id="SIG02_W" type="dead_end" x="0.00" y="100.00" incLanes="" intLanes="" shape="0.00,100.00 0.00,96.80"/>
+
+    <connection from="E_CORRIDOR_1" to="E_CORRIDOR_2" fromLane="0" toLane="0" via=":SIG-01_0_0" tl="SIG-01" linkIndex="0" dir="s" state="O"/>
+    <connection from="E_CORRIDOR_1" to="E_CORRIDOR_2" fromLane="1" toLane="1" via=":SIG-01_0_1" tl="SIG-01" linkIndex="1" dir="s" state="O"/>
+    <connection from="E_CORRIDOR_1" to="E_CROSS1_OUT" fromLane="1" toLane="0" via=":SIG-01_2_0" tl="SIG-01" linkIndex="2" dir="l" state="O"/>
+    <connection from="E_CORRIDOR_2" to="E_CORRIDOR_3" fromLane="0" toLane="0" via=":SIG-02_0_0" tl="SIG-02" linkIndex="0" dir="s" state="O"/>
+    <connection from="E_CORRIDOR_2" to="E_CORRIDOR_3" fromLane="1" toLane="1" via=":SIG-02_0_1" tl="SIG-02" linkIndex="1" dir="s" state="O"/>
+    <connection from="E_CORRIDOR_2" to="E_CROSS2_OUT" fromLane="1" toLane="0" via=":SIG-02_2_0" tl="SIG-02" linkIndex="2" dir="l" state="O"/>
+    <connection from="E_CROSS1_IN" to="E_CORRIDOR_2" fromLane="0" toLane="0" via=":SIG-01_3_0" tl="SIG-01" linkIndex="3" dir="r" state="o"/>
+    <connection from="E_CROSS1_IN" to="E_CROSS1_OUT" fromLane="0" toLane="0" via=":SIG-01_4_0" tl="SIG-01" linkIndex="4" dir="s" state="o"/>
+    <connection from="E_CROSS2_IN" to="E_CORRIDOR_3" fromLane="0" toLane="0" via=":SIG-02_3_0" tl="SIG-02" linkIndex="3" dir="r" state="o"/>
+    <connection from="E_CROSS2_IN" to="E_CROSS2_OUT" fromLane="0" toLane="0" via=":SIG-02_4_0" tl="SIG-02" linkIndex="4" dir="s" state="o"/>
+
+    <connection from=":SIG-01_0" to="E_CORRIDOR_2" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIG-01_0" to="E_CORRIDOR_2" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIG-01_2" to="E_CROSS1_OUT" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":SIG-01_3" to="E_CORRIDOR_2" fromLane="0" toLane="0" dir="r" state="M"/>
+    <connection from=":SIG-01_4" to="E_CROSS1_OUT" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIG-02_0" to="E_CORRIDOR_3" fromLane="0" toLane="0" dir="s" state="M"/>
+    <connection from=":SIG-02_0" to="E_CORRIDOR_3" fromLane="1" toLane="1" dir="s" state="M"/>
+    <connection from=":SIG-02_2" to="E_CROSS2_OUT" fromLane="0" toLane="0" dir="l" state="M"/>
+    <connection from=":SIG-02_3" to="E_CORRIDOR_3" fromLane="0" toLane="0" dir="r" state="M"/>
+    <connection from=":SIG-02_4" to="E_CROSS2_OUT" fromLane="0" toLane="0" dir="s" state="M"/>
+
+</net>

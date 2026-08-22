@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+    <!-- Main Corridor (North to South) -->
+    <edge id="E_CORRIDOR_1" from="N_START" to="SIG-01" priority="2" numLanes="2" speed="13.89"/>
+    <edge id="E_CORRIDOR_2" from="SIG-01" to="SIG-02" priority="2" numLanes="2" speed="13.89"/>
+    <edge id="E_CORRIDOR_3" from="SIG-02" to="HOSPITAL" priority="2" numLanes="2" speed="13.89"/>
+
+    <!-- Cross Road 1 (West to East) -->
+    <edge id="E_CROSS1_IN" from="SIG01_W" to="SIG-01" priority="1" numLanes="1" speed="11.11"/>
+    <edge id="E_CROSS1_OUT" from="SIG-01" to="SIG01_E" priority="1" numLanes="1" speed="11.11"/>
+
+    <!-- Cross Road 2 (West to East) -->
+    <edge id="E_CROSS2_IN" from="SIG02_W" to="SIG-02" priority="1" numLanes="1" speed="11.11"/>
+    <edge id="E_CROSS2_OUT" from="SIG-02" to="SIG02_E" priority="1" numLanes="1" speed="11.11"/>
+</edges>

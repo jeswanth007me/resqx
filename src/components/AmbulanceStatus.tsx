@@ -1,25 +1,35 @@
 import { useLocale } from '../i18n/useLocale';
+import type { TelemetryData } from '../types/telemetry';
 
 interface AmbulanceStatusProps {
-  id: string;
-  status: string;
-  eta: string;
-  speed: number;
-  speedUnit: string;
-  distanceToTarget: number;
-  distanceUnit: string;
+  telemetry?: TelemetryData['ambulance'] | null;
+  id?: string;
+  status?: string;
+  eta?: string;
+  speed?: number;
+  speedUnit?: string;
+  distanceToTarget?: number;
+  distanceUnit?: string;
 }
 
 export function AmbulanceStatus({
-  id,
-  status,
-  eta,
-  speed,
-  speedUnit,
-  distanceToTarget,
-  distanceUnit,
+  telemetry,
+  id = 'AMB-01',
+  status = 'Active',
+  eta = '04:32',
+  speed = 42,
+  speedUnit = 'km/h',
+  distanceToTarget = 2.4,
+  distanceUnit = 'km',
 }: AmbulanceStatusProps) {
   const { t } = useLocale();
+
+  const displayId = telemetry?.id ?? id;
+  const displayStatus = telemetry?.status ?? status;
+  const displayEta = telemetry ? `${telemetry.etaSeconds}s` : eta;
+  const displaySpeed = telemetry?.speedKmh ?? speed;
+  const displayDistance = telemetry ? telemetry.distanceToNextSignal : distanceToTarget;
+  const displayDistUnit = telemetry ? 'm' : distanceUnit;
 
   return (
     <div className="p-[var(--spacing-margin)] border-b border-surface-variant/50 relative overflow-hidden bg-gradient-to-br from-error-container/20 to-transparent">
@@ -35,9 +45,9 @@ export function AmbulanceStatus({
             {t.emergency.priorityAsset}
           </div>
           <div className="font-headline text-2xl font-semibold text-on-surface flex items-center gap-2">
-            {id}
+            {displayId}
             <span className="bg-error text-on-error font-data text-[10px] font-semibold px-2 py-0.5 rounded-sm uppercase tracking-wide shadow-sm">
-              {status}
+              {displayStatus}
             </span>
           </div>
         </div>
@@ -46,7 +56,7 @@ export function AmbulanceStatus({
             {t.emergency.eta}
           </div>
           <div className="font-data text-[24px] font-medium text-primary leading-none">
-            {eta}
+            {displayEta}
           </div>
         </div>
       </div>
@@ -58,7 +68,7 @@ export function AmbulanceStatus({
             {t.emergency.currentSpeed}
           </div>
           <div className="font-data text-lg font-medium text-on-surface">
-            {speed}{' '}
+            {displaySpeed}{' '}
             <span className="text-sm text-on-surface-variant">{speedUnit}</span>
           </div>
         </div>
@@ -67,8 +77,8 @@ export function AmbulanceStatus({
             {t.emergency.distanceToTarget}
           </div>
           <div className="font-data text-lg font-medium text-on-surface">
-            {distanceToTarget}{' '}
-            <span className="text-sm text-on-surface-variant">{distanceUnit}</span>
+            {displayDistance}{' '}
+            <span className="text-sm text-on-surface-variant">{displayDistUnit}</span>
           </div>
         </div>
       </div>

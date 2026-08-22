@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <!-- Vehicle Types -->
+    <vType id="car" accel="2.6" decel="4.5" sigma="0.5" length="4.5" maxSpeed="13.89" color="0,102,204"/>
+    <vType id="emergency" vClass="emergency" accel="3.5" decel="4.5" sigma="0.0" length="5.5" maxSpeed="20.0" color="255,0,0" guiShape="emergency"/>
+
+    <!-- Routes -->
+    <route id="route_corridor" edges="E_CORRIDOR_1 E_CORRIDOR_2 E_CORRIDOR_3"/>
+    <route id="route_cross1" edges="E_CROSS1_IN E_CROSS1_OUT"/>
+    <route id="route_cross2" edges="E_CROSS2_IN E_CROSS2_OUT"/>
+
+    <!-- Vehicles -->
+    <vehicle id="CAR-01" type="car" route="route_corridor" depart="0"/>
+    <vehicle id="CAR-02" type="car" route="route_cross1" depart="2"/>
+    <vehicle id="CAR-03" type="car" route="route_cross2" depart="4"/>
+    
+    <!-- Emergency Vehicle AMB-01 -->
+    <vehicle id="AMB-01" type="emergency" route="route_corridor" depart="5"/>
+    
+    <vehicle id="CAR-04" type="car" route="route_corridor" depart="8"/>
+</routes>

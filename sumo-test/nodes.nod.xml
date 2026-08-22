@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+    <node id="N_START" x="0.0" y="300.0" type="priority"/>
+    <node id="SIG-01" x="0.0" y="200.0" type="traffic_light" tl="SIG-01"/>
+    <node id="SIG-02" x="0.0" y="100.0" type="traffic_light" tl="SIG-02"/>
+    <node id="HOSPITAL" x="0.0" y="0.0" type="priority"/>
+
+    <!-- Cross road 1 nodes -->
+    <node id="SIG01_W" x="-100.0" y="200.0" type="priority"/>
+    <node id="SIG01_E" x="100.0" y="200.0" type="priority"/>
+
+    <!-- Cross road 2 nodes -->
+    <node id="SIG02_W" x="-100.0" y="100.0" type="priority"/>
+    <node id="SIG02_E" x="100.0" y="100.0" type="priority"/>
+</nodes>
