@@ -155,3 +155,114 @@
     transform: translateX(100%);
   }
 }
+
+/* ─── City Map SVG Visualizations ────────────────────────────────── */
+.city-map {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+
+.city-map .block-grid rect {
+  fill: var(--color-surface-container);
+  stroke: rgba(49, 57, 77, 0.4);
+  stroke-width: 1.5;
+}
+
+.city-map .roads path {
+  fill: none;
+  stroke: var(--color-surface-bright);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.city-map .route-line {
+  fill: none;
+  stroke: rgba(255, 179, 173, 0.45);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 6 4;
+}
+
+.city-map .signal circle:first-child {
+  fill: var(--color-surface-container-high);
+  stroke: var(--color-outline-variant);
+  stroke-width: 1.5;
+}
+
+.city-map .signal text {
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--color-on-surface-variant);
+  text-anchor: middle;
+}
+
+.city-map .signal-light.green {
+  fill: var(--color-secondary);
+  filter: drop-shadow(0 0 6px var(--color-secondary));
+}
+
+.city-map .signal-light.red {
+  fill: var(--color-primary-container);
+  filter: drop-shadow(0 0 6px var(--color-primary-container));
+}
+
+.city-map .signal-light.normal {
+  fill: var(--color-on-surface-variant);
+}
+
+.city-map .signal-light.emergency_priority {
+  fill: var(--color-secondary);
+  filter: drop-shadow(0 0 8px var(--color-secondary));
+  animation: pulse-priority 0.8s infinite alternate ease-in-out;
+}
+
+.city-map .vehicle {
+  stroke: var(--color-surface-container-lowest);
+  stroke-width: 1;
+}
+
+.city-map .ambulance rect {
+  fill: var(--color-primary-container);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 4px var(--color-primary-container));
+}
+
+.city-map .ambulance path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.city-map .ambulance circle {
+  fill: #000000;
+}
+
+.city-map .hospital rect {
+  fill: var(--color-secondary-container);
+  stroke: var(--color-secondary);
+  stroke-width: 1.5;
+}
+
+.city-map .hospital path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.city-map .hospital text {
+  font-family: var(--font-headline);
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--color-secondary);
+  text-anchor: middle;
+}
+
+@keyframes pulse-priority {
+  0% { opacity: 0.6; r: 3.5px; }
+  100% { opacity: 1; r: 6.5px; }
+}
