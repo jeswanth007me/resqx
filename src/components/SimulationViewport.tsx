@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { TelemetryData } from '../types/telemetry';
 import type { ConnectionStatus } from '../telemetry/useResQXTelemetry';
 import { sirenAudio } from '../utils/sirenAudio';
+import { SimulationViewport3D } from './SimulationViewport3D';
 
 interface SimulationViewportProps {
   telemetry: TelemetryData | null;
@@ -13,6 +14,7 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
   const [followAmbulance, setFollowAmbulance] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [strobeState, setStrobeState] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'3D' | '2D'>('3D');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isConnected = connectionStatus === 'CONNECTED';
@@ -60,10 +62,6 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
   };
 
   // Helper to translate SUMO vehicle heading angle to 2D Canvas rotation degrees
-  // SUMO 180° (South) -> Canvas 0° (Right / East)
-  // SUMO 0° (North)   -> Canvas 180° (Left / West)
-  // SUMO 90° (East)    -> Canvas 90° (Down / South)
-  // SUMO 270° (West)   -> Canvas 270° (Up / North)
   const getCanvasRotation = (sumoAngle: number): number => {
     const norm = ((sumoAngle % 360) + 360) % 360;
     if (Math.abs(norm - 180) < 45) return 0;
@@ -110,11 +108,11 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
       <div className="flex justify-between items-start z-30 pointer-events-none">
         <div className="bg-[#131B2E]/90 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-xl pointer-events-auto border-l-4 border-l-primary border-y border-r border-outline-variant/30 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <span className="material-symbols-outlined text-lg">location_city</span>
+            <span className="material-symbols-outlined text-lg">view_in_ar</span>
           </div>
           <div>
             <div className="font-data text-[10px] font-semibold text-primary uppercase tracking-widest leading-tight">
-              City Operations View
+              3D Digital Twin View
             </div>
             <div className="font-headline text-base font-bold text-on-surface leading-tight">
               Metropolitan Corridor 04
@@ -122,8 +120,23 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
           </div>
         </div>
 
-        {/* Control Buttons (Sound, Follow Camera, Zoom) */}
+        {/* Control Buttons (3D/2D Mode, Sound, Follow Camera, Zoom) */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {/* 3D / 2D Mode Toggle Button */}
+          <button
+            onClick={() => setViewMode(viewMode === '3D' ? '2D' : '3D')}
+            className={`px-3 py-2 rounded-xl backdrop-blur-md font-data text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
+              viewMode === '3D'
+                ? 'bg-primary/20 text-primary border-primary/40 shadow-primary/10'
+                : 'bg-[#171F33]/80 text-on-surface-variant border-outline-variant/30 hover:bg-[#222A3D]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {viewMode === '3D' ? '3d_rotation' : 'map'}
+            </span>
+            <span>{viewMode === '3D' ? '3D TWIN' : '2D TACTICAL'}</span>
+          </button>
+
           {/* Mute/Sound Toggle Button */}
           <button
             onClick={handleToggleAudio}
@@ -189,8 +202,8 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
         </div>
       </div>
 
-      {/* Main Interactive 2.5D City Canvas Engine */}
-      <div className="relative flex-1 my-2 flex items-center justify-center z-10 overflow-hidden rounded-xl bg-[#091122]">
+      {/* Main Interactive City Viewport (3D Digital Twin or 2D Tactical View) */}
+      <div className="relative flex-1 my-2 flex items-center justify-center z-10 overflow-hidden rounded-xl bg-[#060e20]">
         {/* Disconnect Warning Banner */}
         {!isConnected && (
           <div className="absolute inset-0 bg-[#060E20]/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center gap-3 p-6 text-center">
@@ -206,13 +219,23 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
           </div>
         )}
 
-        <div
-          className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
-          style={{
-            transform: `scale(${zoom}) translate(${panOffsetX}px, 0px)`,
-          }}
-        >
-          <svg className="w-full h-full max-h-[500px]" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet">
+        {viewMode === '3D' ? (
+          /* Primary 3D Digital Twin WebGL Renderer */
+          <SimulationViewport3D
+            telemetry={telemetry}
+            followAmbulance={followAmbulance}
+            strobeState={strobeState}
+          />
+        ) : (
+          /* 2D Tactical SVG Viewport Fallback */
+          <div
+            className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
+            style={{
+              transform: `scale(${zoom}) translate(${panOffsetX}px, 0px)`,
+            }}
+          >
+            <svg className="w-full h-full max-h-[500px]" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet">
+
             <defs>
               {/* Emergency Lighting Filters */}
               <filter id="ambulance-red-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -526,7 +549,8 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
               </g>
             </g>
           </svg>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Telemetry Status Bar */}
