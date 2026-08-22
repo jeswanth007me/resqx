@@ -216,15 +216,15 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
             <defs>
               {/* Emergency Lighting Filters */}
               <filter id="ambulance-red-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
               <filter id="ambulance-blue-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
               <filter id="priority-green-glow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="10" result="blur" />
+                <feGaussianBlur stdDeviation="8" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
 
@@ -314,65 +314,127 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
               <line x1="480" y1="165" x2="480" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
               <line x1="560" y1="165" x2="560" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
 
-              {/* Active Emergency Green Wave Corridor Overlay */}
-              <path
-                d="M 30,225 L 770,225"
-                stroke="#4EDEA3"
-                strokeWidth="48"
-                opacity="0.08"
-                strokeLinecap="round"
-              />
-              <path
-                d={`M 30,225 L ${ambPos.x},225`}
-                stroke="#FF5451"
-                strokeWidth="6"
-                opacity="0.6"
-                strokeDasharray="8 6"
-              />
+              {/* SIG-01 Intersection Emergency Priority Glow Highlight */}
+              {sig01Emergency === 'EMERGENCY PRIORITY' && (
+                <g id="sig01-priority-highlight">
+                  <rect x="260" y="165" width="80" height="120" rx="8" fill="#4EDEA3" opacity="0.15" stroke="#4EDEA3" strokeWidth="3" filter="url(#priority-green-glow)" />
+                  <text x="300" y="156" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
+                    ⚡ PRIORITY GREEN WAVE
+                  </text>
+                </g>
+              )}
+              {sig01Emergency === 'PREPARING' && (
+                <rect x="260" y="165" width="80" height="120" rx="8" fill="#FFB95F" opacity="0.08" stroke="#FFB95F" strokeWidth="1.5" />
+              )}
+
+              {/* SIG-02 Intersection Emergency Priority Glow Highlight */}
+              {sig02Emergency === 'EMERGENCY PRIORITY' && (
+                <g id="sig02-priority-highlight">
+                  <rect x="480" y="165" width="80" height="120" rx="8" fill="#4EDEA3" opacity="0.15" stroke="#4EDEA3" strokeWidth="3" filter="url(#priority-green-glow)" />
+                  <text x="520" y="156" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
+                    ⚡ PRIORITY GREEN WAVE
+                  </text>
+                </g>
+              )}
+              {sig02Emergency === 'PREPARING' && (
+                <rect x="480" y="165" width="80" height="120" rx="8" fill="#FFB95F" opacity="0.08" stroke="#FFB95F" strokeWidth="1.5" />
+              )}
+
+              {/* Active Emergency Corridor Highlight (AMB-01 → NEXT SIGNAL → HOSPITAL) */}
+              {isRunning && amb?.status !== 'STAGED' && amb?.status !== 'ARRIVED' && (() => {
+                const nextSigId = amb?.nextSignal ?? 'SIG-01';
+                let targetX = 300;
+                if (nextSigId === 'SIG-02') targetX = 520;
+                else if (nextSigId === 'HOSPITAL' || ambPos.x > 450) targetX = 740;
+
+                return (
+                  <g id="active-emergency-corridor">
+                    {/* Active Corridor Segment: AMB-01 -> Next Signal */}
+                    <path
+                      d={`M ${ambPos.x},225 L ${targetX},225`}
+                      stroke="#4EDEA3"
+                      strokeWidth="24"
+                      opacity="0.14"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={`M ${ambPos.x},225 L ${targetX},225`}
+                      stroke="#FF5451"
+                      strokeWidth="3.5"
+                      opacity="0.75"
+                      strokeDasharray="8 6"
+                    />
+
+                    {/* Future Segment: Next Signal -> Hospital */}
+                    <path
+                      d={`M ${targetX},225 L 740,225`}
+                      stroke="#4EDEA3"
+                      strokeWidth="14"
+                      opacity="0.06"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={`M ${targetX},225 L 740,225`}
+                      stroke="#4EDEA3"
+                      strokeWidth="2"
+                      opacity="0.35"
+                      strokeDasharray="4 4"
+                    />
+
+                    {/* Corridor Dynamic HUD Badge */}
+                    <g transform={`translate(${Math.min(680, Math.max(120, (ambPos.x + targetX) / 2))}, 205)`}>
+                      <rect x="-42" y="-9" width="84" height="18" rx="9" fill="#060E20" stroke="#4EDEA3" strokeWidth="1" opacity="0.9" />
+                      <text x="0" y="3" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
+                        AMB-01 ▶ {nextSigId}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })()}
             </g>
 
             {/* ─── TRAFFIC SIGNALS & OVERHEAD GANTRIES ────────────────────────── */}
             {/* SIG-01 Gantry */}
-            <g id="gantry-sig-01" transform="translate(300, 160)">
-              {/* Overhead Steel Structure */}
-              <rect x="-35" y="-35" width="70" height="8" fill="#2D3449" rx="2" />
-              <line x1="0" y1="-35" x2="0" y2="-5" stroke="#2D3449" strokeWidth="3" />
+            <g id="gantry-sig-01" transform="translate(245, 140)">
+              {/* Overhead Steel Arm extending over intersection */}
+              <line x1="0" y1="0" x2="35" y2="0" stroke="#2D3449" strokeWidth="3" />
+              <circle cx="0" cy="0" r="4" fill="#2D3449" />
               
               {/* Traffic Light Housing */}
-              <rect x="-16" y="-30" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
+              <rect x="-16" y="-12" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
               
               {/* 3 Light Bulbs (Red, Yellow, Green) */}
-              <circle cx="-8" cy="-18" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
-              <circle cx="0" cy="-18" r="5" fill={sig01Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig01Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
-              <circle cx="8" cy="-18" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig01Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
+              <circle cx="-8" cy="0" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
+              <circle cx="0" cy="0" r="5" fill={sig01Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig01Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
+              <circle cx="8" cy="0" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig01Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
 
               {/* Status Callout Badge */}
-              <g transform="translate(0, -50)">
-                <rect x="-45" y="-12" width="90" height="22" rx="4" fill="#131B2E" stroke={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig01Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
-                <text x="0" y="3" fill="#DAE2FD" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
+              <g transform="translate(0, -28)">
+                <rect x="-45" y="-10" width="90" height="20" rx="4" fill="#131B2E" stroke={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig01Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
+                <text x="0" y="3" fill="#DAE2FD" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
                   SIG-01: {sig01Emergency}
                 </text>
               </g>
             </g>
 
             {/* SIG-02 Gantry */}
-            <g id="gantry-sig-02" transform="translate(520, 160)">
-              {/* Overhead Steel Structure */}
-              <rect x="-35" y="-35" width="70" height="8" fill="#2D3449" rx="2" />
-              <line x1="0" y1="-35" x2="0" y2="-5" stroke="#2D3449" strokeWidth="3" />
+            <g id="gantry-sig-02" transform="translate(465, 140)">
+              {/* Overhead Steel Arm extending over intersection */}
+              <line x1="0" y1="0" x2="35" y2="0" stroke="#2D3449" strokeWidth="3" />
+              <circle cx="0" cy="0" r="4" fill="#2D3449" />
               
               {/* Traffic Light Housing */}
-              <rect x="-16" y="-30" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
+              <rect x="-16" y="-12" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
               
               {/* 3 Light Bulbs */}
-              <circle cx="-8" cy="-18" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
-              <circle cx="0" cy="-18" r="5" fill={sig02Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig02Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
-              <circle cx="8" cy="-18" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig02Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
+              <circle cx="-8" cy="0" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
+              <circle cx="0" cy="0" r="5" fill={sig02Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig02Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
+              <circle cx="8" cy="0" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig02Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
 
               {/* Status Callout Badge */}
-              <g transform="translate(0, -50)">
-                <rect x="-45" y="-12" width="90" height="22" rx="4" fill="#131B2E" stroke={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig02Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
-                <text x="0" y="3" fill="#DAE2FD" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
+              <g transform="translate(0, -28)">
+                <rect x="-45" y="-10" width="90" height="20" rx="4" fill="#131B2E" stroke={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig02Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
+                <text x="0" y="3" fill="#DAE2FD" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
                   SIG-02: {sig02Emergency}
                 </text>
               </g>
@@ -383,9 +445,19 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
               {vehicles
                 .filter((v) => v.id !== 'AMB-01')
                 .map((v) => {
-                  const pt = mapSumoToCanvas(v.x, v.y);
+                  let pt = mapSumoToCanvas(v.x, v.y);
                   const rot = getCanvasRotation(v.angle);
+                  const isVertical = rot === 90 || rot === 270;
                   const carColor = v.color || '#4EDEA3';
+
+                  // Align cross-traffic vehicles precisely to vertical lanes
+                  if (isVertical) {
+                    if (Math.abs(pt.x - 300) < 30) {
+                      pt = { ...pt, x: rot === 90 ? 282 : 318 };
+                    } else if (Math.abs(pt.x - 520) < 30) {
+                      pt = { ...pt, x: rot === 90 ? 502 : 538 };
+                    }
+                  }
 
                   return (
                     <g
@@ -403,10 +475,13 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
                       {/* Taillights */}
                       <circle cx="-13" cy="-5" r="1.5" fill="#FF5451" />
                       <circle cx="-13" cy="5" r="1.5" fill="#FF5451" />
-                      {/* Vehicle Label */}
-                      <text x="0" y="-12" fill="#DAE2FD" fontSize="8" fontWeight="600" fontFamily="JetBrains Mono" textAnchor="middle">
-                        {v.id}
-                      </text>
+                      {/* Vehicle Label — Keep text upright and readable */}
+                      <g transform={`rotate(${-rot})`}>
+                        <rect x="-18" y={isVertical ? -22 : -20} width="36" height="12" rx="2" fill="#060E20" opacity="0.75" />
+                        <text x="0" y={isVertical ? -13 : -11} fill="#DAE2FD" fontSize="8" fontWeight="600" fontFamily="JetBrains Mono" textAnchor="middle">
+                          {v.id}
+                        </text>
+                      </g>
                     </g>
                   );
                 })}
@@ -418,11 +493,11 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
               transform={`translate(${ambPos.x}, ${ambPos.y}) rotate(${ambRot})`}
               style={{ transition: 'transform 0.1s linear' }}
             >
-              {/* Emergency Aura Glow */}
+              {/* Emergency Aura Glow — sleek, focused 18px radius */}
               <circle
-                r="30"
+                r="18"
                 fill={strobeState ? '#FF5451' : '#0066CC'}
-                opacity="0.35"
+                opacity="0.3"
                 filter={strobeState ? 'url(#ambulance-red-glow)' : 'url(#ambulance-blue-glow)'}
               />
 
