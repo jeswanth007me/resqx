@@ -6,14 +6,24 @@ import { TrafficStatus } from './TrafficStatus';
 import { EventTimeline } from './EventTimeline';
 import type { TelemetryData } from '../types/telemetry';
 import type { ConnectionStatus } from '../telemetry/useResQXTelemetry';
+import type { AIRecommendation } from '../types/ai';
 import { mockAIRecommendation } from '../data/mockData';
 
 interface EmergencyPanelProps {
   telemetry: TelemetryData | null;
   connectionStatus?: ConnectionStatus;
+  recommendation?: AIRecommendation;
+  onExecuteRecommendation?: () => void;
+  onDismissRecommendation?: () => void;
 }
 
-export function EmergencyPanel({ telemetry, connectionStatus }: EmergencyPanelProps) {
+export function EmergencyPanel({
+  telemetry,
+  connectionStatus,
+  recommendation,
+  onExecuteRecommendation,
+  onDismissRecommendation,
+}: EmergencyPanelProps) {
   const isConnected = connectionStatus === 'CONNECTED';
   const amb = telemetry?.ambulance;
   const traffic = telemetry?.traffic;
@@ -44,6 +54,17 @@ export function EmergencyPanel({ telemetry, connectionStatus }: EmergencyPanelPr
       ]
     : [];
 
+  const activeRecommendation = recommendation ?? (
+    amb?.nextSignal && amb.nextSignal !== 'HOSPITAL'
+      ? {
+          ...mockAIRecommendation,
+          recommendation: `Prioritize ${amb.nextSignal} now`,
+          reason: `AMB-01 is ${amb.distanceToNextSignal}m from ${amb.nextSignal}. Initiating emergency green wave.`,
+          targetSignal: amb.nextSignal,
+        }
+      : mockAIRecommendation
+  );
+
   return (
     <aside className="w-[400px] bg-surface-container flex flex-col h-full overflow-y-auto custom-scrollbar z-20 shadow-[-8px_0_24px_-8px_rgba(0,0,0,0.5)]">
       {/* Connection Warning Banner if Disconnected */}
@@ -65,18 +86,9 @@ export function EmergencyPanel({ telemetry, connectionStatus }: EmergencyPanelPr
       />
 
       <AIRecommendationCard
-        recommendation={
-          amb?.nextSignal && amb.nextSignal !== 'HOSPITAL'
-            ? {
-                ...mockAIRecommendation,
-                recommendation: `Prioritize ${amb.nextSignal} now`,
-                reason: `AMB-01 is ${amb.distanceToNextSignal}m from ${amb.nextSignal}. Initiating emergency green wave.`,
-                targetSignal: amb.nextSignal,
-              }
-            : mockAIRecommendation
-        }
-        onExecute={() => console.log('[ResQX] AI Override Executed')}
-        onDismiss={() => console.log('[ResQX] AI Recommendation Dismissed')}
+        recommendation={activeRecommendation}
+        onExecute={onExecuteRecommendation ?? (() => console.log('[ResQX] AI Override Executed'))}
+        onDismiss={onDismissRecommendation ?? (() => console.log('[ResQX] AI Recommendation Dismissed'))}
       />
 
       <RouteStatus

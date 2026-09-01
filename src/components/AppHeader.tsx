@@ -37,9 +37,9 @@ export function AppHeader({ activeTab, simulationTime, connectionStatus, onTabCh
             {t.header.systemStatus}
           </span>
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-secondary animate-pulse' : 'bg-error'}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-secondary animate-pulse' : 'bg-tertiary'}`} />
             <span className="font-data text-on-surface text-sm">
-              {isConnected ? 'SUMO LIVE' : 'SUMO DISCONNECTED'}
+              {isConnected ? 'SUMO LIVE' : 'LOCAL SIMULATION'}
             </span>
           </div>
         </div>

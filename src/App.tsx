@@ -1,14 +1,32 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useResQXTelemetry } from './telemetry/useResQXTelemetry';
 import { sirenAudio } from './utils/sirenAudio';
 import { AppHeader } from './components/AppHeader';
 import { SimulationViewport } from './components/SimulationViewport';
 import { EmergencyPanel } from './components/EmergencyPanel';
 import { SimulationControls } from './components/SimulationControls';
+import { decisionEngine } from './ai/decisionEngine';
 
 function App() {
   const { telemetry, connectionStatus, sendControl } = useResQXTelemetry();
   const [activeTab, setActiveTab] = useState('simulation');
+  const [dismissedRecId, setDismissedRecId] = useState<string | null>(null);
+
+  // Compute recommendation from live telemetry using AI decisionEngine
+  const recommendation = useMemo(() => {
+    let rec = decisionEngine(telemetry);
+    if (dismissedRecId && rec.id.startsWith(dismissedRecId.split('-')[1])) {
+      rec = {
+        id: `rec-dismissed-${rec.timestamp}`,
+        recommendation: 'Monitoring traffic network',
+        reason: 'Override recommendation dismissed by operator. Monitoring corridor status.',
+        confidence: 100,
+        action: 'DISMISS',
+        timestamp: rec.timestamp,
+      };
+    }
+    return rec;
+  }, [telemetry, dismissedRecId]);
 
   const isConnected = connectionStatus === 'CONNECTED';
   const simulationTime = telemetry ? telemetry.simulation.elapsedTime : 0;
@@ -31,6 +49,7 @@ function App() {
   const handleReset = () => {
     sirenAudio.stopSiren();
     sendControl('reset');
+    setDismissedRecId(null);
   };
 
   const handleSpeedChange = (speed: 1 | 2 | 5) => {
@@ -49,16 +68,26 @@ function App() {
       <main className="w-full pt-16 pb-20 bg-surface min-h-screen">
         <div className="flex flex-col w-full h-[calc(100vh-144px)]">
           <div className="flex flex-1 h-full p-[var(--spacing-gutter)] gap-[var(--spacing-gutter)] overflow-hidden">
-            {/* LEFT / CENTER: Live City Traffic Simulation Viewport */}
+            {/* LEFT / CENTER: Live City Traffic Simulation Viewport (3D Digital Twin) */}
             <SimulationViewport
               telemetry={telemetry}
               connectionStatus={connectionStatus}
             />
 
-            {/* RIGHT: ResQX Emergency Operational Sidebar */}
+            {/* RIGHT: ResQX Emergency Operational Sidebar & AI Recommendation Card */}
             <EmergencyPanel
               telemetry={telemetry}
               connectionStatus={connectionStatus}
+              recommendation={recommendation}
+              onExecuteRecommendation={() => {
+                if (recommendation.targetSignal && recommendation.action === 'EXECUTE_OVERRIDE') {
+                  sendControl('start');
+                }
+              }}
+              onDismissRecommendation={() => {
+                const typePrefix = recommendation.id.split('-')[0] + '-' + recommendation.id.split('-')[1];
+                setDismissedRecId(typePrefix);
+              }}
             />
           </div>
         </div>

@@ -120,484 +120,340 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
           </div>
         </div>
 
-        {/* Control Buttons (3D/2D Mode, Sound, Follow Camera, Zoom) */}
+        {/* Floating Controls Overlay (2D/3D Mode Switcher, Zoom & Siren Audio) */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* 3D / 2D Mode Toggle Button */}
-          <button
-            onClick={() => setViewMode(viewMode === '3D' ? '2D' : '3D')}
-            className={`px-3 py-2 rounded-xl backdrop-blur-md font-data text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
-              viewMode === '3D'
-                ? 'bg-primary/20 text-primary border-primary/40 shadow-primary/10'
-                : 'bg-[#171F33]/80 text-on-surface-variant border-outline-variant/30 hover:bg-[#222A3D]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {viewMode === '3D' ? '3d_rotation' : 'map'}
-            </span>
-            <span>{viewMode === '3D' ? '3D TWIN' : '2D TACTICAL'}</span>
-          </button>
-
-          {/* Mute/Sound Toggle Button */}
-          <button
-            onClick={handleToggleAudio}
-            className={`px-3 py-2 rounded-xl backdrop-blur-md font-data text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
-              !isMuted
-                ? 'bg-secondary/20 text-secondary border-secondary/40 shadow-secondary/10'
-                : 'bg-[#171F33]/80 text-on-surface-variant border-outline-variant/30 hover:bg-[#222A3D]'
-            }`}
-            title={isMuted ? 'Enable Ambulance Siren Sound' : 'Mute Siren'}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {!isMuted ? 'volume_up' : 'volume_off'}
-            </span>
-            <span>{!isMuted ? 'SIREN ON' : 'MUTED'}</span>
-          </button>
-
-          {/* Follow Ambulance Camera Toggle */}
-          <button
-            onClick={() => setFollowAmbulance(!followAmbulance)}
-            className={`px-3 py-2 rounded-xl backdrop-blur-md font-data text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer shadow-md ${
-              followAmbulance
-                ? 'bg-primary/20 text-primary border-primary/40'
-                : 'bg-[#171F33]/80 text-on-surface-variant border-outline-variant/30 hover:bg-[#222A3D]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">videocam</span>
-            <span>{followAmbulance ? 'FOLLOWING AMB-01' : 'FREE CAM'}</span>
-          </button>
-
-          {/* Zoom Buttons */}
-          <div className="flex items-center bg-[#171F33]/90 backdrop-blur-md rounded-xl p-1 border border-outline-variant/30">
+          {/* 3D vs 2D Toggle Switcher */}
+          <div className="bg-[#131B2E]/90 backdrop-blur-md p-1 rounded-xl shadow-xl border border-outline-variant/30 flex items-center gap-1">
             <button
-              onClick={() => setZoom((z) => Math.max(0.75, z - 0.15))}
-              className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-on-surface border-none bg-transparent cursor-pointer"
+              onClick={() => setViewMode('3D')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-data font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === '3D'
+                  ? 'bg-primary text-on-primary shadow-md'
+                  : 'text-on-surface-variant hover:bg-surface-variant/40'
+              }`}
             >
-              <span className="material-symbols-outlined text-[16px]">remove</span>
-            </button>
-            <span className="font-data text-[10px] font-semibold text-on-surface px-1">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(1.5, z + 0.15))}
-              className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-on-surface border-none bg-transparent cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">add</span>
+              <span className="material-symbols-outlined text-sm">3d_rotation</span>
+              3D DIGITAL TWIN
             </button>
             <button
-              onClick={() => { setZoom(1); setFollowAmbulance(true); }}
-              className="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-secondary border-none bg-transparent cursor-pointer ml-1"
-              title="Reset View"
+              onClick={() => setViewMode('2D')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-data font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewMode === '2D'
+                  ? 'bg-primary text-on-primary shadow-md'
+                  : 'text-on-surface-variant hover:bg-surface-variant/40'
+              }`}
             >
-              <span className="material-symbols-outlined text-[16px]">center_focus_strong</span>
+              <span className="material-symbols-outlined text-sm">map</span>
+              2D TACTICAL
             </button>
           </div>
 
-          {/* Live SUMO Telemetry Badge */}
-          <div className="bg-[#131B2E]/90 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-md flex items-center gap-2 border border-outline-variant/30">
-            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? (isRunning ? 'bg-secondary animate-ping' : 'bg-secondary') : 'bg-error'}`} />
-            <span className="font-data text-xs font-semibold text-on-surface tracking-wider uppercase">
-              {isConnected ? (isRunning ? 'SUMO LIVE' : isArrived ? 'COMPLETE' : 'CONNECTED') : 'DISCONNECTED'}
+          {/* Connection Status Badge */}
+          <div className="bg-[#131B2E]/90 backdrop-blur-md px-3 py-2 rounded-xl shadow-xl border border-outline-variant/30 flex items-center gap-2">
+            <div
+              className={`w-2.5 h-2.5 rounded-full ${
+                isConnected
+                  ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+                  : 'bg-error shadow-[0_0_8px_#ff5451] animate-pulse'
+              }`}
+            />
+            <span className="font-data text-xs font-semibold text-on-surface">
+              {isConnected ? 'SUMO LIVE' : 'DISCONNECTED'}
             </span>
+          </div>
+
+          {/* Audio Siren Toggle Button */}
+          <button
+            onClick={handleToggleAudio}
+            className={`w-10 h-10 rounded-xl shadow-xl border backdrop-blur-md flex items-center justify-center transition-all cursor-pointer ${
+              !isMuted
+                ? 'bg-error/20 border-error text-error shadow-[0_0_12px_rgba(255,84,81,0.4)] animate-pulse'
+                : 'bg-[#131B2E]/90 border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant/50'
+            }`}
+            title={!isMuted ? 'Mute Emergency Siren' : 'Enable Emergency Siren Sound'}
+          >
+            <span className="material-symbols-outlined text-xl">
+              {!isMuted ? 'volume_up' : 'volume_off'}
+            </span>
+          </button>
+
+          {/* Camera Follow Toggle Button */}
+          <button
+            onClick={() => setFollowAmbulance(!followAmbulance)}
+            className={`px-3 py-2 rounded-xl text-xs font-data font-semibold shadow-xl border backdrop-blur-md transition-all cursor-pointer flex items-center gap-1.5 ${
+              followAmbulance
+                ? 'bg-primary/20 border-primary text-primary'
+                : 'bg-[#131B2E]/90 border-outline-variant/30 text-on-surface-variant hover:bg-surface-variant/50'
+            }`}
+            title="Lock camera to AMB-01 position"
+          >
+            <span className="material-symbols-outlined text-sm">my_location</span>
+            {followAmbulance ? 'FOLLOWING' : 'FREE CAM'}
+          </button>
+
+          {/* Zoom Controls */}
+          <div className="bg-[#131B2E]/90 backdrop-blur-md p-1 rounded-xl shadow-xl border border-outline-variant/30 flex items-center">
+            <button
+              onClick={() => setZoom((z) => Math.min(z + 0.2, 1.8))}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">zoom_in</span>
+            </button>
+            <button
+              onClick={() => setZoom((z) => Math.max(z - 0.2, 0.6))}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">zoom_out</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Interactive City Viewport (3D Digital Twin or 2D Tactical View) */}
-      <div className="relative flex-1 my-2 flex items-center justify-center z-10 overflow-hidden rounded-xl bg-[#060e20]">
-        {/* Disconnect Warning Banner */}
-        {!isConnected && (
-          <div className="absolute inset-0 bg-[#060E20]/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center gap-3 p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-error-container/30 flex items-center justify-center text-error mb-1">
-              <span className="material-symbols-outlined text-2xl">signal_disconnected</span>
-            </div>
-            <div className="font-headline text-lg font-bold text-on-surface">
-              SUMO TELEMETRY DISCONNECTED
-            </div>
-            <div className="font-data text-xs text-on-surface-variant max-w-md">
-              Run <code className="bg-surface-container-highest px-2 py-1 rounded text-primary">python telemetry_server.py</code> in terminal. React will automatically reconnect when online.
-            </div>
-          </div>
-        )}
-
+      {/* VIEWPORT CANVAS CONTAINER (3D Digital Twin vs 2D Tactical View) */}
+      <div className="absolute inset-0 z-10 flex items-center justify-center">
         {viewMode === '3D' ? (
-          /* Primary 3D Digital Twin WebGL Renderer */
+          /* Real Three.js WebGL 3D Digital Twin Viewport */
           <SimulationViewport3D
             telemetry={telemetry}
             followAmbulance={followAmbulance}
             strobeState={strobeState}
           />
         ) : (
-          /* 2D Tactical SVG Viewport Fallback */
+          /* 2D Tactical Viewport Fallback */
           <div
-            className="w-full h-full flex items-center justify-center transition-transform duration-300 ease-out"
+            className="w-full h-full relative transition-transform duration-300 ease-out flex items-center justify-center"
             style={{
-              transform: `scale(${zoom}) translate(${panOffsetX}px, 0px)`,
+              transform: `scale(${zoom}) translateX(${panOffsetX}px)`,
             }}
           >
-            <svg className="w-full h-full max-h-[500px]" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet">
-
-            <defs>
-              {/* Emergency Lighting Filters */}
-              <filter id="ambulance-red-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3.5" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <filter id="ambulance-blue-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3.5" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <filter id="priority-green-glow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="8" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-
-              {/* Building Facade Patterns */}
-              <pattern id="building-windows-1" width="10" height="15" patternUnits="userSpaceOnUse">
-                <rect width="10" height="15" fill="#131B2E" />
-                <rect x="2" y="3" width="6" height="8" fill="#DAE2FD" opacity="0.15" />
-              </pattern>
-              <pattern id="building-windows-active" width="12" height="18" patternUnits="userSpaceOnUse">
-                <rect width="12" height="18" fill="#171F33" />
-                <rect x="2" y="3" width="8" height="10" fill="#FFB95F" opacity="0.4" />
-              </pattern>
-            </defs>
-
-            {/* ─── CITY ENVIRONMENT & BUILDINGS ─────────────────────────────── */}
-            {/* North City Blocks (Top of Boulevard) */}
-            <g id="city-north-blocks">
-              <rect x="40" y="30" width="200" height="110" rx="8" fill="#131B2E" stroke="#222A3D" strokeWidth="2" />
-              <rect x="50" y="40" width="180" height="90" fill="url(#building-windows-1)" />
-              <rect x="60" y="50" width="60" height="40" fill="#171F33" stroke="#2D3449" />
-              <text x="70" y="75" fill="#E4BEBA" fontSize="10" fontFamily="Inter">TECH PARK A</text>
-
-              <rect x="320" y="30" width="160" height="110" rx="8" fill="#171F33" stroke="#2D3449" strokeWidth="2" />
-              <rect x="330" y="40" width="140" height="90" fill="url(#building-windows-active)" />
-              <text x="350" y="75" fill="#FFB95F" fontSize="10" fontWeight="600" fontFamily="Inter">COMMERCIAL PLAZA</text>
-
-              <rect x="540" y="30" width="220" height="110" rx="8" fill="#131B2E" stroke="#222A3D" strokeWidth="2" />
-              <rect x="550" y="40" width="200" height="90" fill="url(#building-windows-1)" />
-              <text x="580" y="75" fill="#DAE2FD" fontSize="10" fontFamily="Inter">CIVIC CENTER</text>
-            </g>
-
-            {/* South City Blocks (Bottom of Boulevard) */}
-            <g id="city-south-blocks">
-              <rect x="40" y="310" width="200" height="110" rx="8" fill="#131B2E" stroke="#222A3D" strokeWidth="2" />
-              <rect x="50" y="320" width="180" height="90" fill="url(#building-windows-1)" />
-              <text x="70" y="360" fill="#E4BEBA" fontSize="10" fontFamily="Inter">RESIDENTIAL DISTRICT</text>
-
-              <rect x="320" y="310" width="160" height="110" rx="8" fill="#171F33" stroke="#2D3449" strokeWidth="2" />
-              <rect x="330" y="320" width="140" height="90" fill="url(#building-windows-1)" />
-              <text x="350" y="360" fill="#DAE2FD" fontSize="10" fontFamily="Inter">FINANCIAL SECTOR</text>
-
-              {/* HOSPITAL COMPLEX DESTINATION */}
-              <g id="hospital-complex" transform="translate(540, 310)">
-                <rect x="0" y="0" width="220" height="110" rx="12" fill="#171F33" stroke="#4EDEA3" strokeWidth="3" filter={isArrived ? 'url(#priority-green-glow)' : undefined} />
-                <rect x="10" y="10" width="200" height="90" fill="#131B2E" rx="6" />
-                
-                {/* Emergency Cross Icon & Glowing Header */}
-                <circle cx="45" cy="55" r="24" fill="#003824" stroke="#4EDEA3" strokeWidth="2" />
-                <path d="M 45,41 V 69 M 31,55 H 59" stroke="#4EDEA3" strokeWidth="6" strokeLinecap="round" />
-                
-                <text x="80" y="48" fill="#4EDEA3" fontSize="14" fontWeight="700" fontFamily="Inter">CITY GENERAL</text>
-                <text x="80" y="65" fill="#DAE2FD" fontSize="11" fontWeight="600" fontFamily="JetBrains Mono">EMERGENCY CENTER</text>
-
-                {/* Helipad Symbol */}
-                <circle cx="175" cy="55" r="18" fill="transparent" stroke="#4EDEA3" strokeWidth="2" strokeDasharray="4 4" />
-                <text x="175" y="60" fill="#4EDEA3" fontSize="14" fontWeight="700" fontFamily="Inter" textAnchor="middle">H</text>
-
-                <rect x="10" y="85" width="200" height="15" fill="#00A572" opacity="0.2" rx="3" />
-                <text x="110" y="96" fill="#4EDEA3" fontSize="9" fontWeight="600" fontFamily="JetBrains Mono" textAnchor="middle">AMBULANCE BAY READY</text>
-              </g>
-            </g>
-
-            {/* ─── ROAD NETWORK & CORRIDOR ───────────────────────────────────── */}
-            <g id="road-network">
-              {/* Sidewalk Borders */}
-              <rect x="20" y="155" width="760" height="140" fill="#0E1626" rx="4" />
-              <rect x="30" y="160" width="740" height="130" fill="#131F37" rx="2" />
-
-              {/* Asphalt Main Boulevard (4 Lanes) */}
-              <rect x="30" y="165" width="740" height="120" fill="#182236" />
-
-              {/* Double Yellow Center Line Divider */}
-              <line x1="30" y1="224" x2="770" y2="224" stroke="#FFB95F" strokeWidth="2" />
-              <line x1="30" y1="226" x2="770" y2="226" stroke="#FFB95F" strokeWidth="2" />
-
-              {/* White Dashed Lane Dividers */}
-              <line x1="30" y1="195" x2="770" y2="195" stroke="#DAE2FD" strokeWidth="1.5" strokeDasharray="12 12" opacity="0.5" />
-              <line x1="30" y1="255" x2="770" y2="255" stroke="#DAE2FD" strokeWidth="1.5" strokeDasharray="12 12" opacity="0.5" />
+            {/* SVG Corridor Geometry Canvas */}
+            <svg viewBox="0 0 800 450" className="w-full h-full max-w-[1000px] max-h-[600px]">
+              <defs>
+                {/* Asphalt texture pattern */}
+                <pattern id="asphalt" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <rect width="10" height="10" fill="#121A2B" />
+                  <circle cx="2" cy="2" r="0.5" fill="#1E293B" />
+                  <circle cx="7" cy="7" r="0.5" fill="#1E293B" />
+                </pattern>
+                {/* Glowing Green Ribbon Gradient for Active Priority Corridor */}
+                <linearGradient id="emergencyCorridorGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#4EDEA3" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#38BDF8" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#4EDEA3" stopOpacity="0.9" />
+                </linearGradient>
+              </defs>
 
               {/* Cross Street 1 (SIG-01 Intersection) */}
-              <rect x="260" y="30" width="80" height="390" fill="#182236" />
-              <line x1="260" y1="165" x2="260" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
-              <line x1="340" y1="165" x2="340" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
+              <rect x="280" y="40" width="40" height="370" fill="url(#asphalt)" rx="4" />
+              <line x1="300" y1="40" x2="300" y2="410" stroke="#dae2fd" strokeWidth="1" strokeDasharray="6 6" opacity="0.3" />
 
               {/* Cross Street 2 (SIG-02 Intersection) */}
-              <rect x="480" y="30" width="80" height="390" fill="#182236" />
-              <line x1="480" y1="165" x2="480" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
-              <line x1="560" y1="165" x2="560" y2="285" stroke="#DAE2FD" strokeWidth="4" strokeDasharray="6 6" />
+              <rect x="500" y="40" width="40" height="370" fill="url(#asphalt)" rx="4" />
+              <line x1="520" y1="40" x2="520" y2="410" stroke="#dae2fd" strokeWidth="1" strokeDasharray="6 6" opacity="0.3" />
 
-              {/* SIG-01 Intersection Emergency Priority Glow Highlight */}
-              {sig01Emergency === 'EMERGENCY PRIORITY' && (
-                <g id="sig01-priority-highlight">
-                  <rect x="260" y="165" width="80" height="120" rx="8" fill="#4EDEA3" opacity="0.15" stroke="#4EDEA3" strokeWidth="3" filter="url(#priority-green-glow)" />
-                  <text x="300" y="156" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                    ⚡ PRIORITY GREEN WAVE
-                  </text>
-                </g>
-              )}
-              {sig01Emergency === 'PREPARING' && (
-                <rect x="260" y="165" width="80" height="120" rx="8" fill="#FFB95F" opacity="0.08" stroke="#FFB95F" strokeWidth="1.5" />
-              )}
+              {/* MAIN EMERGENCY CORRIDOR ROADWAY */}
+              <rect x="60" y="195" width="700" height="60" fill="url(#asphalt)" rx="6" stroke="#2a364f" strokeWidth="2" />
+              {/* Double Yellow Center Line */}
+              <line x1="60" y1="224" x2="760" y2="224" stroke="#ffb95f" strokeWidth="1.5" />
+              <line x1="60" y1="226" x2="760" y2="226" stroke="#ffb95f" strokeWidth="1.5" />
 
-              {/* SIG-02 Intersection Emergency Priority Glow Highlight */}
-              {sig02Emergency === 'EMERGENCY PRIORITY' && (
-                <g id="sig02-priority-highlight">
-                  <rect x="480" y="165" width="80" height="120" rx="8" fill="#4EDEA3" opacity="0.15" stroke="#4EDEA3" strokeWidth="3" filter="url(#priority-green-glow)" />
-                  <text x="520" y="156" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                    ⚡ PRIORITY GREEN WAVE
-                  </text>
-                </g>
-              )}
-              {sig02Emergency === 'PREPARING' && (
-                <rect x="480" y="165" width="80" height="120" rx="8" fill="#FFB95F" opacity="0.08" stroke="#FFB95F" strokeWidth="1.5" />
+              {/* White Dashed Lane Dividers */}
+              <line x1="60" y1="210" x2="760" y2="210" stroke="#dae2fd" strokeWidth="1" strokeDasharray="8 8" opacity="0.4" />
+              <line x1="60" y1="240" x2="760" y2="240" stroke="#dae2fd" strokeWidth="1" strokeDasharray="8 8" opacity="0.4" />
+
+              {/* ACTIVE EMERGENCY GREEN WAVE CORRIDOR RIBBON HIGHLIGHT */}
+              {isRunning && amb?.status !== 'STAGED' && (
+                <rect
+                  x={ambPos.x}
+                  y="200"
+                  width={Math.max(20, (amb?.nextSignal === 'SIG-02' ? 520 : amb?.nextSignal === 'HOSPITAL' ? 740 : 300) - ambPos.x)}
+                  height="50"
+                  fill="url(#emergencyCorridorGlow)"
+                  rx="6"
+                  opacity="0.35"
+                  className="animate-pulse"
+                />
               )}
 
-              {/* Active Emergency Corridor Highlight (AMB-01 → NEXT SIGNAL → HOSPITAL) */}
-              {isRunning && amb?.status !== 'STAGED' && amb?.status !== 'ARRIVED' && (() => {
-                const nextSigId = amb?.nextSignal ?? 'SIG-01';
-                let targetX = 300;
-                if (nextSigId === 'SIG-02') targetX = 520;
-                else if (nextSigId === 'HOSPITAL' || ambPos.x > 450) targetX = 740;
-
-                return (
-                  <g id="active-emergency-corridor">
-                    {/* Active Corridor Segment: AMB-01 -> Next Signal */}
-                    <path
-                      d={`M ${ambPos.x},225 L ${targetX},225`}
-                      stroke="#4EDEA3"
-                      strokeWidth="24"
-                      opacity="0.14"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d={`M ${ambPos.x},225 L ${targetX},225`}
-                      stroke="#FF5451"
-                      strokeWidth="3.5"
-                      opacity="0.75"
-                      strokeDasharray="8 6"
-                    />
-
-                    {/* Future Segment: Next Signal -> Hospital */}
-                    <path
-                      d={`M ${targetX},225 L 740,225`}
-                      stroke="#4EDEA3"
-                      strokeWidth="14"
-                      opacity="0.06"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d={`M ${targetX},225 L 740,225`}
-                      stroke="#4EDEA3"
-                      strokeWidth="2"
-                      opacity="0.35"
-                      strokeDasharray="4 4"
-                    />
-
-                    {/* Corridor Dynamic HUD Badge */}
-                    <g transform={`translate(${Math.min(680, Math.max(120, (ambPos.x + targetX) / 2))}, 205)`}>
-                      <rect x="-42" y="-9" width="84" height="18" rx="9" fill="#060E20" stroke="#4EDEA3" strokeWidth="1" opacity="0.9" />
-                      <text x="0" y="3" fill="#4EDEA3" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                        AMB-01 ▶ {nextSigId}
-                      </text>
-                    </g>
-                  </g>
-                );
-              })()}
-            </g>
-
-            {/* ─── TRAFFIC SIGNALS & OVERHEAD GANTRIES ────────────────────────── */}
-            {/* SIG-01 Gantry */}
-            <g id="gantry-sig-01" transform="translate(245, 140)">
-              {/* Overhead Steel Arm extending over intersection */}
-              <line x1="0" y1="0" x2="35" y2="0" stroke="#2D3449" strokeWidth="3" />
-              <circle cx="0" cy="0" r="4" fill="#2D3449" />
-              
-              {/* Traffic Light Housing */}
-              <rect x="-16" y="-12" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
-              
-              {/* 3 Light Bulbs (Red, Yellow, Green) */}
-              <circle cx="-8" cy="0" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
-              <circle cx="0" cy="0" r="5" fill={sig01Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig01Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
-              <circle cx="8" cy="0" r="5" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig01Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
-
-              {/* Status Callout Badge */}
-              <g transform="translate(0, -28)">
-                <rect x="-45" y="-10" width="90" height="20" rx="4" fill="#131B2E" stroke={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig01Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
-                <text x="0" y="3" fill="#DAE2FD" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                  SIG-01: {sig01Emergency}
+              {/* STARTING NODE (N_START / FIRE STATION) */}
+              <g transform="translate(80, 225)">
+                <circle r="22" fill="#131b2e" stroke="#38bdf8" strokeWidth="2" />
+                <circle r="6" fill="#38bdf8" />
+                <text x="0" y="36" textAnchor="middle" fill="#dae2fd" fontSize="10" fontFamily="monospace" fontWeight="bold">
+                  N_START
                 </text>
               </g>
-            </g>
 
-            {/* SIG-02 Gantry */}
-            <g id="gantry-sig-02" transform="translate(465, 140)">
-              {/* Overhead Steel Arm extending over intersection */}
-              <line x1="0" y1="0" x2="35" y2="0" stroke="#2D3449" strokeWidth="3" />
-              <circle cx="0" cy="0" r="4" fill="#2D3449" />
-              
-              {/* Traffic Light Housing */}
-              <rect x="-16" y="-12" width="32" height="24" rx="4" fill="#060E20" stroke="#5B403E" strokeWidth="1.5" />
-              
-              {/* 3 Light Bulbs */}
-              <circle cx="-8" cy="0" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#FF5451' : '#690005'} />
-              <circle cx="0" cy="0" r="5" fill={sig02Emergency === 'PREPARING' ? '#FFB95F' : '#472A00'} className={sig02Emergency === 'PREPARING' ? 'animate-pulse' : undefined} />
-              <circle cx="8" cy="0" r="5" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : '#003824'} filter={sig02Emergency === 'EMERGENCY PRIORITY' ? 'url(#priority-green-glow)' : undefined} />
-
-              {/* Status Callout Badge */}
-              <g transform="translate(0, -28)">
-                <rect x="-45" y="-10" width="90" height="20" rx="4" fill="#131B2E" stroke={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4EDEA3' : sig02Emergency === 'PREPARING' ? '#FFB95F' : '#AB8986'} strokeWidth="1.5" />
-                <text x="0" y="3" fill="#DAE2FD" fontSize="9" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                  SIG-02: {sig02Emergency}
+              {/* SIGNAL 01 INTERSECTION (SIG-01) */}
+              <g transform="translate(300, 225)">
+                <rect
+                  x="-20"
+                  y="-30"
+                  width="40"
+                  height="60"
+                  fill={sig01Emergency === 'EMERGENCY PRIORITY' ? 'rgba(78, 222, 164, 0.25)' : 'none'}
+                  stroke={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4edea3' : '#334155'}
+                  strokeWidth="2"
+                  rx="4"
+                />
+                <circle
+                  r="14"
+                  fill={
+                    sig01Emergency === 'EMERGENCY PRIORITY'
+                      ? '#4edea3'
+                      : sig01Emergency === 'PREPARING'
+                      ? '#ffb95f'
+                      : '#ff5451'
+                  }
+                  className={sig01Emergency === 'EMERGENCY PRIORITY' ? 'shadow-[0_0_20px_#4edea3]' : ''}
+                />
+                <text x="0" y="-36" textAnchor="middle" fill="#dae2fd" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                  SIG-01
+                </text>
+                <text x="0" y="46" textAnchor="middle" fill={sig01Emergency === 'EMERGENCY PRIORITY' ? '#4edea3' : '#94a3b8'} fontSize="9" fontFamily="monospace">
+                  {sig01Emergency}
                 </text>
               </g>
-            </g>
 
-            {/* ─── NORMAL TRAFFIC VEHICLES (FROM SUMO TELEMETRY) ──────────────── */}
-            <g id="normal-vehicles">
+              {/* SIGNAL 02 INTERSECTION (SIG-02) */}
+              <g transform="translate(520, 225)">
+                <rect
+                  x="-20"
+                  y="-30"
+                  width="40"
+                  height="60"
+                  fill={sig02Emergency === 'EMERGENCY PRIORITY' ? 'rgba(78, 222, 164, 0.25)' : 'none'}
+                  stroke={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4edea3' : '#334155'}
+                  strokeWidth="2"
+                  rx="4"
+                />
+                <circle
+                  r="14"
+                  fill={
+                    sig02Emergency === 'EMERGENCY PRIORITY'
+                      ? '#4edea3'
+                      : sig02Emergency === 'PREPARING'
+                      ? '#ffb95f'
+                      : '#ff5451'
+                  }
+                  className={sig02Emergency === 'EMERGENCY PRIORITY' ? 'shadow-[0_0_20px_#4edea3]' : ''}
+                />
+                <text x="0" y="-36" textAnchor="middle" fill="#dae2fd" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                  SIG-02
+                </text>
+                <text x="0" y="46" textAnchor="middle" fill={sig02Emergency === 'EMERGENCY PRIORITY' ? '#4edea3' : '#94a3b8'} fontSize="9" fontFamily="monospace">
+                  {sig02Emergency}
+                </text>
+              </g>
+
+              {/* DESTINATION HOSPITAL NODE */}
+              <g transform="translate(740, 225)">
+                <rect x="-24" y="-24" width="48" height="48" rx="8" fill="#131b2e" stroke="#4edea3" strokeWidth="2.5" />
+                <path d="M-8 0 H8 M0 -8 V8" stroke="#4edea3" strokeWidth="4" strokeLinecap="round" />
+                <text x="0" y="38" textAnchor="middle" fill="#4edea3" fontSize="11" fontFamily="monospace" fontWeight="bold">
+                  HOSPITAL
+                </text>
+              </g>
+
+              {/* NORMAL CITY TRAFFIC VEHICLES (CAR-01 to CAR-04) */}
               {vehicles
                 .filter((v) => v.id !== 'AMB-01')
                 .map((v) => {
-                  let pt = mapSumoToCanvas(v.x, v.y);
+                  const pos = mapSumoToCanvas(v.x, v.y);
                   const rot = getCanvasRotation(v.angle);
-                  const isVertical = rot === 90 || rot === 270;
-                  const carColor = v.color || '#4EDEA3';
-
-                  // Align cross-traffic vehicles precisely to vertical lanes
-                  if (isVertical) {
-                    if (Math.abs(pt.x - 300) < 30) {
-                      pt = { ...pt, x: rot === 90 ? 282 : 318 };
-                    } else if (Math.abs(pt.x - 520) < 30) {
-                      pt = { ...pt, x: rot === 90 ? 502 : 538 };
-                    }
-                  }
-
                   return (
-                    <g
-                      key={v.id}
-                      transform={`translate(${pt.x}, ${pt.y}) rotate(${rot})`}
-                      style={{ transition: 'transform 0.1s linear' }}
-                    >
-                      {/* Car Body */}
-                      <rect x="-14" y="-7" width="28" height="14" rx="4" fill={carColor} stroke="#060E20" strokeWidth="1.5" />
-                      {/* Windshield */}
-                      <rect x="-4" y="-5" width="8" height="10" rx="2" fill="#060E20" opacity="0.7" />
-                      {/* Headlights */}
-                      <circle cx="12" cy="-4" r="2" fill="#FFF" />
-                      <circle cx="12" cy="4" r="2" fill="#FFF" />
-                      {/* Taillights */}
-                      <circle cx="-13" cy="-5" r="1.5" fill="#FF5451" />
-                      <circle cx="-13" cy="5" r="1.5" fill="#FF5451" />
-                      {/* Vehicle Label — Keep text upright and readable */}
-                      <g transform={`rotate(${-rot})`}>
-                        <rect x="-18" y={isVertical ? -22 : -20} width="36" height="12" rx="2" fill="#060E20" opacity="0.75" />
-                        <text x="0" y={isVertical ? -13 : -11} fill="#DAE2FD" fontSize="8" fontWeight="600" fontFamily="JetBrains Mono" textAnchor="middle">
-                          {v.id}
-                        </text>
-                      </g>
+                    <g key={v.id} transform={`translate(${pos.x}, ${pos.y}) rotate(${rot})`} className="transition-all duration-300 ease-linear">
+                      <rect x="-8" y="-4" width="16" height="8" rx="2" fill={v.color || '#4edea3'} stroke="#060e20" strokeWidth="1" />
+                      <circle cx="6" cy="-2" r="1" fill="#ffffff" />
+                      <circle cx="6" cy="2" r="1" fill="#ffffff" />
+                      <text x="0" y="-8" textAnchor="middle" fill="#dae2fd" fontSize="8" fontFamily="monospace">
+                        {v.id}
+                      </text>
                     </g>
                   );
                 })}
-            </g>
 
-            {/* ─── AMBULANCE (AMB-01) ─────────────────────────────────────────── */}
-            <g
-              id="ambulance-amb-01"
-              transform={`translate(${ambPos.x}, ${ambPos.y}) rotate(${ambRot})`}
-              style={{ transition: 'transform 0.1s linear' }}
-            >
-              {/* Emergency Aura Glow — sleek, focused 18px radius */}
-              <circle
-                r="18"
-                fill={strobeState ? '#FF5451' : '#0066CC'}
-                opacity="0.3"
-                filter={strobeState ? 'url(#ambulance-red-glow)' : 'url(#ambulance-blue-glow)'}
-              />
-
-              {/* Chassis Base */}
-              <rect x="-22" y="-12" width="44" height="24" rx="6" fill="#FFFFFF" stroke="#FF5451" strokeWidth="2.5" />
-              
-              {/* Medical Red Cross on Roof */}
-              <path d="M 0,-6 V 6 M -6,0 H 6" stroke="#FF5451" strokeWidth="4" strokeLinecap="round" />
-              
-              {/* Windshield */}
-              <rect x="8" y="-9" width="8" height="18" rx="2" fill="#060E20" opacity="0.8" />
-              
-              {/* Dual Strobe Lights (Flashing Red / Blue) */}
-              <circle cx="2" cy="-10" r="3" fill={strobeState ? '#FF0000' : '#000'} />
-              <circle cx="2" cy="10" r="3" fill={!strobeState ? '#0066FF' : '#000'} />
-
-              {/* Headlight Beams */}
-              <polygon points="20,-6 45,-15 45,15 20,6" fill="#FFF" opacity="0.25" />
-
-              {/* Dynamic Callout Badge */}
-              <g transform="translate(0, -34)">
-                <rect x="-40" y="-12" width="80" height="20" rx="4" fill="#060E20" stroke="#FF5451" strokeWidth="1.5" />
-                <text x="0" y="2" fill="#FFB3AD" fontSize="10" fontWeight="700" fontFamily="JetBrains Mono" textAnchor="middle">
-                  AMB-01 • {amb?.speedKmh ?? 0} km/h
-                </text>
-              </g>
-            </g>
-          </svg>
+              {/* EMERGENCY VEHICLE (AMB-01) */}
+              {amb && (
+                <g transform={`translate(${ambPos.x}, ${ambPos.y}) rotate(${ambRot})`} className="transition-all duration-200 ease-linear">
+                  {/* Flashing Siren Aura Ring */}
+                  {isRunning && (
+                    <circle
+                      r="28"
+                      fill={strobeState ? 'rgba(255, 84, 81, 0.25)' : 'rgba(0, 102, 255, 0.25)'}
+                      className="animate-ping"
+                    />
+                  )}
+                  {/* Vehicle Body */}
+                  <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#ffffff" stroke="#ff5451" strokeWidth="2" />
+                  {/* Red Side Stripe */}
+                  <rect x="-14" y="-2" width="28" height="4" fill="#ff5451" />
+                  {/* Roof Strobe Lights */}
+                  <circle cx="0" cy="-4" r="2.5" fill={strobeState ? '#ff0000' : '#002266'} />
+                  <circle cx="0" cy="4" r="2.5" fill={!strobeState ? '#0066ff' : '#660000'} />
+                  {/* Forward Spotlight Beam */}
+                  {isRunning && <polygon points="14,-6 45,-16 45,16 14,6" fill="rgba(255, 255, 255, 0.2)" />}
+                  {/* HUD Speed Label */}
+                  <text x="0" y="-12" textAnchor="middle" fill="#ff5451" fontSize="10" fontFamily="monospace" fontWeight="bold">
+                    AMB-01 ({amb.speedKmh} km/h)
+                  </text>
+                </g>
+              )}
+            </svg>
           </div>
         )}
       </div>
 
-      {/* Bottom Telemetry Status Bar */}
-      <div className="bg-[#131B2E]/95 backdrop-blur-md p-3.5 rounded-xl border border-surface-container-highest grid grid-cols-5 gap-3 z-30 shadow-lg">
-        <div>
-          <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
-            Active Unit
+      {/* BOTTOM TELEMETRY METRICS BANNER */}
+      <div className="bg-[#131B2E]/90 backdrop-blur-md px-5 py-3 rounded-xl shadow-xl z-30 pointer-events-auto border border-outline-variant/30 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div>
+            <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
+              Ambulance Speed
+            </div>
+            <div className="font-data text-base font-bold text-primary flex items-center gap-1">
+              {amb?.speedKmh ?? 0} <span className="text-xs text-on-surface-variant font-normal">km/h</span>
+            </div>
           </div>
-          <div className="font-headline text-base font-bold text-primary flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">ambulance</span>
-            {amb?.id ?? 'AMB-01'}
-          </div>
-        </div>
 
-        <div>
-          <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
-            Unit Speed
-          </div>
-          <div className="font-data text-base font-semibold text-on-surface">
-            {amb?.speedKmh ?? 0} <span className="text-xs text-on-surface-variant font-normal">km/h</span>
-          </div>
-        </div>
+          <div className="w-px h-8 bg-outline-variant/30" />
 
-        <div>
-          <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
-            Next Intersect
+          <div>
+            <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
+              Current Road
+            </div>
+            <div className="font-data text-sm font-semibold text-on-surface">
+              {amb?.currentRoad ?? 'E_CORRIDOR_1'}
+            </div>
           </div>
-          <div className="font-data text-sm font-semibold text-tertiary">
-            {amb?.nextSignal ?? 'SIG-01'}
-          </div>
-        </div>
 
-        <div>
-          <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
-            Distance
-          </div>
-          <div className="font-data text-base font-semibold text-secondary">
-            {amb?.distanceToNextSignal ?? 0} <span className="text-xs text-on-surface-variant font-normal">m</span>
-          </div>
-        </div>
+          <div className="w-px h-8 bg-outline-variant/30" />
 
-        <div>
-          <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
-            Time Saved
+          <div>
+            <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
+              Next Intercept Signal
+            </div>
+            <div className="font-data text-sm font-semibold text-tertiary">
+              {amb?.nextSignal ?? 'SIG-01'}
+            </div>
           </div>
-          <div className="font-data text-base font-semibold text-secondary">
-            +{telemetry?.mission.timeSaved ?? 0} <span className="text-xs text-on-surface-variant font-normal">sec</span>
+
+          <div>
+            <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
+              Distance
+            </div>
+            <div className="font-data text-base font-semibold text-secondary">
+              {amb?.distanceToNextSignal ?? 0} <span className="text-xs text-on-surface-variant font-normal">m</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-0.5">
+              Time Saved
+            </div>
+            <div className="font-data text-base font-semibold text-secondary">
+              +{telemetry?.mission.timeSaved ?? 0} <span className="text-xs text-on-surface-variant font-normal">sec</span>
+            </div>
           </div>
         </div>
       </div>

@@ -390,6 +390,39 @@ class TelemetryBridge:
         else:
             return {"status": "error", "message": f"Unknown action: {action}"}
 
+    def handle_signal(self, signal_id, state, pattern=None):
+        if not signal_id or not state:
+            return {"status": "error", "message": "Missing signalId or state"}
+
+        state_upper = state.upper()
+        if signal_id not in ("SIG-01", "SIG-02"):
+            return {"status": "error", "message": f"Unknown signal: {signal_id}"}
+
+        try:
+            if state_upper == "PREPARING":
+                self.signal_states[signal_id] = "PREPARING"
+                actual_pattern = pattern if pattern and pattern != "0" else "yyyrr"
+                if self.traci_connected:
+                    traci.trafficlight.setRedYellowGreenState(signal_id, actual_pattern)
+                print(f"[SUMO Bridge] Signal API: {signal_id} -> PREPARING ({actual_pattern})")
+            elif state_upper in ("PRIORITY", "PASSING", "EMERGENCY_PRIORITY", "EMERGENCY PRIORITY"):
+                self.signal_states[signal_id] = "EMERGENCY PRIORITY"
+                self.signals_prioritized_count += 1
+                actual_pattern = pattern if pattern and pattern != "0" else "GGGrr"
+                if self.traci_connected:
+                    traci.trafficlight.setRedYellowGreenState(signal_id, actual_pattern)
+                print(f"[SUMO Bridge] Signal API: {signal_id} -> EMERGENCY PRIORITY ({actual_pattern})")
+            elif state_upper in ("RESTORING", "RESTORED", "NORMAL"):
+                self.signal_states[signal_id] = "RESTORED" if state_upper in ("RESTORING", "RESTORED") else "NORMAL"
+                if self.traci_connected:
+                    traci.trafficlight.setProgram(signal_id, "0")
+                print(f"[SUMO Bridge] Signal API: {signal_id} -> {self.signal_states[signal_id]} (Program 0)")
+
+            actual = self.signal_states[signal_id]
+            return {"status": "ok", "signalId": signal_id, "state": state_upper, "actualState": actual}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
 
 bridge = TelemetryBridge()
 
@@ -439,6 +472,13 @@ class TelemetryHTTPHandler(BaseHTTPRequestHandler):
             action = query.get("action", [""])[0]
             val = query.get("value", [None])[0]
             result = bridge.handle_control(action, val)
+            self._send_json(result)
+
+        elif path == "/api/signal":
+            sig_id = query.get("signalId", [""])[0]
+            state = query.get("state", [""])[0]
+            pattern = query.get("pattern", [None])[0]
+            result = bridge.handle_signal(sig_id, state, pattern)
             self._send_json(result)
 
         else:
