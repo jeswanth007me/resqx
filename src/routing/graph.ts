@@ -228,6 +228,16 @@ export function setEdgeSignalDelay(graph: RoadGraph, edgeId: string, signalDelay
 }
 
 /**
+ * Updates the queue delay on a specific road edge.
+ */
+export function setEdgeQueueDelay(graph: RoadGraph, edgeId: string, queueDelay: number): boolean {
+  const edge = graph.edges.get(edgeId);
+  if (!edge) return false;
+  edge.queueDelay = Math.max(0, queueDelay);
+  return true;
+}
+
+/**
  * Sets the blocked status on a specific road edge.
  */
 export function setEdgeBlocked(graph: RoadGraph, edgeId: string, blocked: boolean): boolean {

@@ -18,6 +18,7 @@ export interface RoadEdge {
   distance: number; // Length in meters / simulation units
   baseTravelTime: number; // Base free-flow travel time in seconds
   trafficDelay: number; // Extra delay due to congestion/vehicles in seconds
+  queueDelay?: number; // Delay specifically derived from queuing/stopped vehicles in seconds
   signalDelay: number; // Extra delay due to traffic light red phase/queues in seconds
   blocked: boolean; // Whether the road is completely closed/blocked
   points?: Point[]; // Geometric polyline coordinates for rendering
@@ -32,6 +33,7 @@ export interface RoadGraph {
 export interface CostBreakdown {
   baseTravelTime: number;
   trafficDelay: number;
+  queueDelay?: number;
   signalDelay: number;
   totalCost: number;
 }
