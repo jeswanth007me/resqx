@@ -10,16 +10,27 @@
  * - These are pure data contracts
  */
 
-// ─── Primitives ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Primitives
+// ─────────────────────────────────────────────────────────────
 
 export interface Point {
   x: number;
   y: number;
 }
 
-// ─── Signal Types ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Signal Types
+// ─────────────────────────────────────────────────────────────
 
-export type SignalState = 'NORMAL' | 'RED' | 'GREEN' | 'EMERGENCY_PRIORITY';
+export type SignalState =
+  | 'NORMAL'
+  | 'RED'
+  | 'GREEN'
+  | 'PREPARING'
+  | 'PRIORITY'
+  | 'PASSING'
+  | 'RESTORING';
 
 export interface TrafficSignal {
   id: string;
@@ -28,13 +39,42 @@ export interface TrafficSignal {
   state: SignalState;
   road: string;
   queueLength: number;
-  distanceFromAmbulance?: number;
 }
 
-/** @deprecated Use TrafficSignal instead. Kept for backward compatibility. */
 export type Signal = TrafficSignal;
 
-// ─── Road & Route ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Simulation / Decision / Safety
+// ─────────────────────────────────────────────────────────────
+
+export type SimulationMode =
+  | 'LOCAL_SIMULATION'
+  | 'SUMO_LIVE';
+
+export type DecisionAction =
+  | 'NO_ACTION'
+  | 'REQUEST_PRIORITY'
+  | 'RESTORE_SIGNAL';
+
+export interface DecisionState {
+  action: DecisionAction;
+  signalId: string | null;
+  reason: string;
+}
+
+export type SafetyStatus =
+  | 'APPROVED'
+  | 'BLOCKED'
+  | 'IDLE';
+
+export interface SafetyState {
+  status: SafetyStatus;
+  reason: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Road & Route
+// ─────────────────────────────────────────────────────────────
 
 export interface Road {
   id: string;
@@ -43,7 +83,10 @@ export interface Road {
   length: number;
 }
 
-export type CongestionLevel = 'LOW' | 'MODERATE' | 'HIGH';
+export type CongestionLevel =
+  | 'LOW'
+  | 'MODERATE'
+  | 'HIGH';
 
 export interface Route {
   id: string;
@@ -55,7 +98,9 @@ export interface Route {
   congestion: CongestionLevel;
 }
 
-// ─── Vehicles ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Vehicles
+// ─────────────────────────────────────────────────────────────
 
 export interface Vehicle {
   id: string;
@@ -65,7 +110,10 @@ export interface Vehicle {
   color: string;
 }
 
-export type AmbulanceStatus = 'STAGED' | 'EN_ROUTE' | 'ARRIVED';
+export type AmbulanceStatus =
+  | 'STAGED'
+  | 'EN_ROUTE'
+  | 'ARRIVED';
 
 export interface Ambulance {
   id: string;
@@ -79,7 +127,9 @@ export interface Ambulance {
   eta?: number;
 }
 
-// ─── Traffic ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Traffic
+// ─────────────────────────────────────────────────────────────
 
 export interface TrafficState {
   vehicleCount: number;
@@ -88,7 +138,9 @@ export interface TrafficState {
   density?: number;
 }
 
-// ─── Officer ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Officer
+// ─────────────────────────────────────────────────────────────
 
 export interface Officer {
   id: string;
@@ -98,19 +150,30 @@ export interface Officer {
   onDuty: boolean;
 }
 
-// ─── Simulation State ────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Simulation State
+// ─────────────────────────────────────────────────────────────
 
 export interface SimulationState {
   simulationTime: number;
   isRunning: boolean;
   speed: 1 | 2 | 5;
+
+  mode: SimulationMode;
+
+  decision: DecisionState;
+  safety: SafetyState;
+
   ambulance: Ambulance;
   vehicles: Vehicle[];
   signals: TrafficSignal[];
   roads: Road[];
+
   selectedSignal: string | null;
   selectedAmbulance: string | null;
+
   scenario: string;
+
   route?: Route;
   traffic?: TrafficState;
 }

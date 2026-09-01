@@ -1,6 +1,133 @@
 import { useEffect, useReducer } from 'react';
 import { initialState, tick } from '../simulation/engine';
+import { buildTelemetry } from '../telemetry/buildTelemetry';
+import { evaluateDecision } from '../decision/decisionEngine';
+import { validateSignalAction } from '../safety/safetyValidator';
+import { applySignalDecision } from '../signal/signalController';
 import type { SimulationState } from '../types/simulation';
-type Action = { type: 'START' } | { type: 'PAUSE' } | { type: 'RESET' } | { type: 'SPEED'; speed: SimulationState['speed'] } | { type: 'TICK'; delta: number };
-const reducer = (state: SimulationState, action: Action): SimulationState => action.type === 'START' ? { ...state, isRunning: true } : action.type === 'PAUSE' ? { ...state, isRunning: false } : action.type === 'RESET' ? initialState() : action.type === 'SPEED' ? { ...state, speed: action.speed } : state.isRunning ? tick(state, action.delta) : state;
-export const useSimulation = () => { const [state, dispatch] = useReducer(reducer, undefined, initialState); useEffect(() => { const interval = window.setInterval(() => dispatch({ type: 'TICK', delta: .1 }), 100); return () => window.clearInterval(interval); }, []); return { state, dispatch }; };
+
+type Action =
+  | { type: 'START' }
+  | { type: 'PAUSE' }
+  | { type: 'RESET' }
+  | {
+      type: 'SPEED';
+      speed: SimulationState['speed'];
+    }
+  | {
+      type: 'TICK';
+      delta: number;
+    };
+
+const reducer = (
+  state: SimulationState,
+  action: Action,
+): SimulationState => {
+  if (action.type === 'START') {
+    return {
+      ...state,
+      isRunning: true,
+    };
+  }
+
+  if (action.type === 'PAUSE') {
+    return {
+      ...state,
+      isRunning: false,
+    };
+  }
+
+  if (action.type === 'RESET') {
+    return initialState();
+  }
+
+  if (action.type === 'SPEED') {
+    return {
+      ...state,
+      speed: action.speed,
+    };
+  }
+
+  if (action.type === 'TICK') {
+    if (!state.isRunning) {
+      return state;
+    }
+
+    // 1. Advance the existing simulation.
+    const nextState = tick(
+      state,
+      action.delta,
+    );
+
+    // 2. Convert simulation state into the
+    // existing ResQX telemetry contract.
+    const telemetry = buildTelemetry(
+      nextState,
+    );
+
+    // 3. Run the ResQX Decision Engine.
+    const decision = evaluateDecision(
+      telemetry,
+      nextState,
+    );
+
+    // 4. Validate the requested signal action
+    // before allowing it to modify simulation state.
+    const safety = validateSignalAction(
+      nextState,
+      decision,
+    );
+
+    // 5. Only approved decisions can reach
+    // the signal-control layer.
+    if (safety.status === 'APPROVED') {
+      const controlledState =
+        applySignalDecision(
+          nextState,
+          decision,
+        );
+
+      return {
+        ...controlledState,
+        decision,
+        safety,
+      };
+    }
+
+    // 6. Blocked or idle decisions do not
+    // modify the signal state.
+    return {
+      ...nextState,
+      decision,
+      safety,
+    };
+  }
+
+  return state;
+};
+
+export const useSimulation = () => {
+  const [state, dispatch] = useReducer(
+    reducer,
+    undefined,
+    initialState,
+  );
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      dispatch({
+        type: 'TICK',
+        delta: 0.1,
+      });
+    }, 100);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  return {
+    state,
+    dispatch,
+  };
+};
