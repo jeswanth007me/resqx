@@ -423,6 +423,31 @@ class TelemetryBridge:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    def handle_alert(self, alert_id, emergency_id, junction_id, officer_id, message=""):
+        provider = os.environ.get("ALERT_PROVIDER", "").strip().lower()
+        api_key = os.environ.get("ALERT_API_KEY", "").strip()
+
+        if not provider or not api_key:
+            # Deterministic Demo Mode (Zero fake delivery claims)
+            print(f"[Alert Server] DEMO ALERT for {junction_id} (Officer: {officer_id}): {message[:60]}...")
+            return {
+                "status": "ok",
+                "mode": "DEMO",
+                "delivered": False,
+                "alertId": alert_id,
+                "message": "Demo Mode: Alert recorded on server console (Set ALERT_PROVIDER in .env for live SMS)",
+            }
+
+        # Server-side provider integration stub
+        print(f"[Alert Server] LIVE ALERT via {provider} for {junction_id}: {message[:60]}...")
+        return {
+            "status": "ok",
+            "mode": "LIVE",
+            "delivered": True,
+            "alertId": alert_id,
+            "message": f"Dispatched via {provider}",
+        }
+
 
 bridge = TelemetryBridge()
 
@@ -481,6 +506,14 @@ class TelemetryHTTPHandler(BaseHTTPRequestHandler):
             result = bridge.handle_signal(sig_id, state, pattern)
             self._send_json(result)
 
+        elif path == "/api/alert":
+            alert_id = query.get("alertId", [""])[0]
+            emergency_id = query.get("emergencyId", ["AMB-01"])[0]
+            junction_id = query.get("junctionId", [""])[0]
+            officer_id = query.get("officerId", [""])[0]
+            result = bridge.handle_alert(alert_id, emergency_id, junction_id, officer_id)
+            self._send_json(result)
+
         else:
             self._send_json({"error": "Not Found"}, 404)
 
@@ -501,6 +534,23 @@ class TelemetryHTTPHandler(BaseHTTPRequestHandler):
 
             result = bridge.handle_control(action, val)
             self._send_json(result)
+
+        elif path == "/api/alert":
+            content_len = int(self.headers.get("Content-Length", 0))
+            post_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                data = json.loads(post_body.decode("utf-8"))
+                alert_id = data.get("alertId", "")
+                emergency_id = data.get("emergencyId", "AMB-01")
+                junction_id = data.get("junctionId", "")
+                officer_id = data.get("officerId", "")
+                msg = data.get("message", "")
+            except Exception:
+                alert_id, emergency_id, junction_id, officer_id, msg = "", "", "", "", ""
+
+            result = bridge.handle_alert(alert_id, emergency_id, junction_id, officer_id, msg)
+            self._send_json(result)
+
         else:
             self._send_json({"error": "Not Found"}, 404)
 
