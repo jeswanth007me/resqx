@@ -18,6 +18,8 @@ import { planEmergencyCorridor } from '../routing/corridor';
 
 import type { EmergencyEvent } from '../types/events';
 
+import { PerformanceBenchmarkCard } from './PerformanceBenchmarkCard';
+
 interface EmergencyPanelProps {
   telemetry: TelemetryData | null;
   connectionStatus?: ConnectionStatus;
@@ -178,6 +180,8 @@ export function EmergencyPanel({
       />
 
       <SignalStatus signals={telemetry?.signals} />
+
+      <PerformanceBenchmarkCard />
 
       <EventTimeline events={liveEvents} />
     </aside>
