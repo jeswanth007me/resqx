@@ -3,7 +3,10 @@ import { initialState, tick } from '../simulation/engine';
 import { buildTelemetry } from '../telemetry/buildTelemetry';
 import { evaluateDecision } from '../decision/decisionEngine';
 import { validateSignalAction } from '../safety/safetyValidator';
-import { applySignalDecision } from '../signal/signalController';
+import {
+  advanceSignalStates,
+  applySignalDecision,
+} from '../signal/signalController';
 import type { SimulationState } from '../types/simulation';
 
 type Action =
@@ -54,10 +57,14 @@ const reducer = (
     }
 
     // 1. Advance the existing simulation.
-    const nextState = tick(
-      state,
-      action.delta,
-    );
+    let nextState = tick(
+  state,
+  action.delta,
+);
+
+nextState = advanceSignalStates(
+  nextState,
+);
 
     // 2. Convert simulation state into the
     // existing ResQX telemetry contract.
