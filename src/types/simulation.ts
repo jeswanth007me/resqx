@@ -1,3 +1,4 @@
+import type { EmergencyEvent } from './events';
 /**
  * ResQX Shared Types — Simulation Contracts
  *
@@ -158,7 +159,7 @@ export interface SimulationState {
   simulationTime: number;
   isRunning: boolean;
   speed: 1 | 2 | 5;
-
+  events: EmergencyEvent[];
   mode: SimulationMode;
 
   decision: DecisionState;

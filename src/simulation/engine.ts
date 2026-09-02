@@ -36,9 +36,11 @@ export const initialState = (): SimulationState => ({
   },
 
   safety: {
-    status: 'IDLE',
-    reason: 'No signal action requested',
-  },
+  status: 'IDLE',
+  reason: 'No signal action requested',
+},
+
+events: [],
 });
 
 const pointOnRoad = (road: Road, progress: number): Point => {
