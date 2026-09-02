@@ -3,9 +3,8 @@ import { AIRecommendationCard } from './AIRecommendationCard';
 import { SignalStatus } from './SignalStatus';
 import { RouteStatus } from './RouteStatus';
 import { TrafficStatus } from './TrafficStatus';
-import type { AIRecommendation } from '../types/ai';
-import type { EmergencyEvent } from '../types/events';
 import { EventTimeline } from './EventTimeline';
+import type { AIRecommendation } from '../types/ai';
 import { useSimulation } from '../state/useSimulation';
 
 export function EmergencyPanel() {
@@ -77,7 +76,8 @@ export function EmergencyPanel() {
         : 'Low';
 
   const aiRecommendation: AIRecommendation = {
-     id: 'live-decision',
+    id: 'live-decision',
+
     recommendation:
       state.decision.action === 'REQUEST_PRIORITY'
         ? `Prioritize ${state.decision.signalId}`
@@ -95,51 +95,15 @@ export function EmergencyPanel() {
     targetSignal: state.decision.signalId ?? '',
 
     action:
-  state.decision.action === 'REQUEST_PRIORITY'
-    ? ('EXECUTE_OVERRIDE' as const)
-    : ('DISMISS' as const),
+      state.decision.action === 'REQUEST_PRIORITY'
+        ? 'EXECUTE_OVERRIDE'
+        : 'DISMISS',
+
     timestamp: state.simulationTime,
   };
-const liveEvents: EmergencyEvent[] = [];
 
-if (state.decision.action === 'REQUEST_PRIORITY') {
-  liveEvents.push({
-    id: `priority-${state.simulationTime}`,
-    timestamp: state.simulationTime,
-    type: 'SIGNAL_PRIORITY_REQUESTED',
-    description: `${state.decision.signalId} Priority Requested`,
-    severity: 'WARNING',
-    relatedSignal: state.decision.signalId ?? undefined,
-    relatedUnit: ambulance.id,
-  });
-}
-
-if (state.safety.status === 'APPROVED') {
-  liveEvents.push({
-    id: `approved-${state.simulationTime}`,
-    timestamp: state.simulationTime,
-    type: 'SIGNAL_ACTION_APPROVED',
-    description: `Signal action approved by safety validator`,
-    severity: 'SUCCESS',
-    relatedSignal: state.decision.signalId ?? undefined,
-    relatedUnit: ambulance.id,
-  });
-}
-
-if (state.safety.status === 'BLOCKED') {
-  liveEvents.push({
-    id: `blocked-${state.simulationTime}`,
-    timestamp: state.simulationTime,
-    type: 'SIGNAL_ACTION_BLOCKED',
-    description: `Signal action blocked by safety validator`,
-    severity: 'CRITICAL',
-    relatedSignal: state.decision.signalId ?? undefined,
-    relatedUnit: ambulance.id,
-  });
-}
   return (
     <aside className="w-[400px] bg-surface-container flex flex-col h-full overflow-y-auto custom-scrollbar z-20 shadow-[-8px_0_24px_-8px_rgba(0,0,0,0.5)]">
-
       <AmbulanceStatus
         id={ambulance.id}
         status={
@@ -220,8 +184,9 @@ if (state.safety.status === 'BLOCKED') {
         signals={signalStatuses}
       />
 
-      <EventTimeline events={[]} />
-
+      <EventTimeline
+        events={state.events}
+      />
     </aside>
   );
 }
