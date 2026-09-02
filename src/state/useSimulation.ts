@@ -18,10 +18,16 @@ type Action =
       speed: SimulationState['speed'];
     }
   | {
+      type: 'EMERGENCY_START';
+    }
+  | {
+      type: 'SCENARIO';
+      scenario: string;
+    }
+  | {
       type: 'TICK';
       delta: number;
     };
-
 const reducer = (
   state: SimulationState,
   action: Action,
@@ -50,6 +56,23 @@ const reducer = (
       speed: action.speed,
     };
   }
+if (action.type === 'EMERGENCY_START') {
+  return {
+    ...state,
+    isRunning: true,
+    ambulance: {
+      ...state.ambulance,
+      status: 'EN_ROUTE',
+    },
+  };
+}
+
+if (action.type === 'SCENARIO') {
+  return {
+    ...state,
+    scenario: action.scenario,
+  };
+}
 
   if (action.type === 'TICK') {
     if (!state.isRunning) {

@@ -35,8 +35,12 @@ export function EmergencyPanel() {
 
       <AIRecommendationCard
         recommendation={mockAIRecommendation}
-        onExecute={() => console.log('[ResQX] AI Override Executed')}
-        onDismiss={() => console.log('[ResQX] AI Recommendation Dismissed')}
+        onExecute={() => {
+          window.alert('RESQX: AI Override Executed');
+        }}
+        onDismiss={() => {
+          window.alert('RESQX: AI Recommendation Dismissed');
+        }}
       />
 
       <RouteStatus
