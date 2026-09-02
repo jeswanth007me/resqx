@@ -14,7 +14,8 @@ import type { Telemetry } from '../types/telemetry';
  * Responsibilities:
  * - Read current telemetry
  * - Identify the ambulance's next signal
- * - Request emergency signal priority
+ * - Validate the ETA received from telemetry
+ * - Decide when emergency priority should be requested
  * - Request restoration after the ambulance has arrived
  *
  * NOT responsible for:
@@ -24,11 +25,15 @@ import type { Telemetry } from '../types/telemetry';
  * - corridor planning
  * - green-wave scheduling
  */
+
+const PRIORITY_TRIGGER_ETA_SECONDS = 5;
+
 export const evaluateDecision = (
   telemetry: Telemetry,
   state: SimulationState,
 ): DecisionState => {
   const nextSignal = telemetry.route.nextSignal;
+  const eta = telemetry.ambulance.eta;
 
   // Ambulance has completed the mission.
   if (telemetry.ambulance.emergencyStatus === 'ARRIVED') {
@@ -48,11 +53,11 @@ export const evaluateDecision = (
     };
   }
 
+  // Telemetry references a signal that does not exist.
   const signal = telemetry.signals.find(
     (item) => item.id === nextSignal,
   );
 
-  // Telemetry references a signal that does not exist.
   if (!signal) {
     return {
       action: 'NO_ACTION',
@@ -64,9 +69,9 @@ export const evaluateDecision = (
   // Do not repeatedly request priority for a signal
   // that is already handling the emergency.
   if (
+    signal.state === 'PREPARING' ||
     signal.state === 'PRIORITY' ||
-    signal.state === 'PASSING' ||
-    signal.state === 'PREPARING'
+    signal.state === 'PASSING'
   ) {
     return {
       action: 'NO_ACTION',
@@ -75,21 +80,47 @@ export const evaluateDecision = (
     };
   }
 
-  // Emergency vehicle is actively approaching the signal.
+  // Only an actively travelling ambulance can trigger
+  // predictive emergency priority.
   if (
-    telemetry.ambulance.emergencyStatus === 'EN_ROUTE' ||
-    state.ambulance.status === 'EN_ROUTE'
+    telemetry.ambulance.emergencyStatus !== 'EN_ROUTE' &&
+    state.ambulance.status !== 'EN_ROUTE'
   ) {
     return {
-      action: 'REQUEST_PRIORITY',
+      action: 'NO_ACTION',
       signalId: signal.id,
-      reason: `Emergency ambulance approaching ${signal.id}`,
+      reason: 'Emergency vehicle is not currently requesting priority',
     };
   }
 
+  // Never make a priority decision using invalid ETA data.
+  if (!Number.isFinite(eta) || eta < 0) {
+    return {
+      action: 'NO_ACTION',
+      signalId: signal.id,
+      reason: 'Ambulance ETA is unavailable or invalid',
+    };
+  }
+
+  // ETA is still outside the priority trigger window.
+  // Continue monitoring rather than activating the signal early.
+  if (eta > PRIORITY_TRIGGER_ETA_SECONDS) {
+    return {
+      action: 'NO_ACTION',
+      signalId: signal.id,
+      reason:
+        `Ambulance ETA to ${signal.id} is ${eta.toFixed(1)}s; ` +
+        `continue monitoring`,
+    };
+  }
+
+  // Ambulance is close enough that signal preparation
+  // should begin now.
   return {
-    action: 'NO_ACTION',
+    action: 'REQUEST_PRIORITY',
     signalId: signal.id,
-    reason: 'Emergency vehicle is not currently requesting priority',
+    reason:
+      `Ambulance ETA to ${signal.id} is ${eta.toFixed(1)}s; ` +
+      `priority threshold reached`,
   };
 };
