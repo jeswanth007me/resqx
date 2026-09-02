@@ -98,7 +98,7 @@ export function EmergencyPanel() {
   state.decision.action === 'REQUEST_PRIORITY'
     ? ('EXECUTE_OVERRIDE' as const)
     : ('DISMISS' as const),
-    timestamp: Date.now(),
+    timestamp: state.simulationTime,
   };
 const liveEvents: EmergencyEvent[] = [];
 
