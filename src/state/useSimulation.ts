@@ -3,12 +3,15 @@ import { initialState, tick } from '../simulation/engine';
 import { buildTelemetry } from '../telemetry/buildTelemetry';
 import { evaluateDecision } from '../decision/decisionEngine';
 import { validateSignalAction } from '../safety/safetyValidator';
+import { MockSignalHardwareAdapter } from '../hardware';
 import {
   advanceSignalStates,
   applySignalDecision,
 } from '../signal/signalController';
 import type { EmergencyEvent } from '../types/events';
 import type { SimulationState } from '../types/simulation';
+
+const hardwareAdapter = new MockSignalHardwareAdapter();
 
 type Action =
   | { type: 'START' }
@@ -112,11 +115,43 @@ const reducer = (
     let controlledState = nextState;
 
     // 5. Apply only approved signal actions.
-    if (safety.status === 'APPROVED') {
+    if (
+      safety.status === 'APPROVED' &&
+      decision.signalId
+    ) {
       controlledState = applySignalDecision(
         nextState,
         decision,
       );
+
+      const controlledSignal =
+        controlledState.signals.find(
+          (signal) =>
+            signal.id === decision.signalId,
+        );
+
+      if (controlledSignal) {
+        /*
+         * The simulation supports RED/GREEN for
+         * normal traffic, while the hardware adapter
+         * only accepts emergency-control states.
+         *
+         * Therefore RED/GREEN are represented as
+         * NORMAL at the hardware boundary.
+         */
+        const hardwareState =
+          controlledSignal.state === 'RED' ||
+          controlledSignal.state === 'GREEN'
+            ? 'NORMAL'
+            : controlledSignal.state;
+
+        void hardwareAdapter.sendCommand({
+          signalId: controlledSignal.id,
+          state: hardwareState,
+          timestamp:
+            controlledState.simulationTime,
+        });
+      }
     }
 
     // 6. Create persistent audit events.
@@ -129,7 +164,8 @@ const reducer = (
         type: 'SIGNAL_PRIORITY_REQUESTED',
         description: `${decision.signalId} Priority Requested`,
         severity: 'WARNING',
-        relatedSignal: decision.signalId ?? undefined,
+        relatedSignal:
+          decision.signalId ?? undefined,
         relatedUnit: nextState.ambulance.id,
       });
     }
@@ -144,7 +180,8 @@ const reducer = (
         type: 'SIGNAL_ACTION_APPROVED',
         description: safety.reason,
         severity: 'SUCCESS',
-        relatedSignal: decision.signalId ?? undefined,
+        relatedSignal:
+          decision.signalId ?? undefined,
         relatedUnit: nextState.ambulance.id,
       });
     }
@@ -159,7 +196,8 @@ const reducer = (
         type: 'SIGNAL_ACTION_BLOCKED',
         description: safety.reason,
         severity: 'CRITICAL',
-        relatedSignal: decision.signalId ?? undefined,
+        relatedSignal:
+          decision.signalId ?? undefined,
         relatedUnit: nextState.ambulance.id,
       });
     }
