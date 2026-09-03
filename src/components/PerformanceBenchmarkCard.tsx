@@ -63,9 +63,13 @@ export function PerformanceBenchmarkCard() {
             EXPERIMENTAL BENCHMARK
           </span>
         </div>
-        <span className="text-[10px] font-data font-bold px-2 py-0.5 rounded bg-secondary/15 text-secondary border border-secondary/30">
-          MEASURED
+        <span className="text-[10px] font-data font-bold px-2 py-0.5 rounded bg-tertiary/15 text-tertiary border border-tertiary/30">
+          MODEL-DERIVED
         </span>
+      </div>
+
+      <div className="text-[10px] font-data text-on-surface-variant/80 mb-3 italic">
+        Illustrative/model-derived comparison; not a measured field result.
       </div>
 
       {/* Scenario Selection & Controls */}

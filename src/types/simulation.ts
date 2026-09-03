@@ -19,7 +19,15 @@ export interface Point {
 
 // ─── Signal Types ────────────────────────────────────────────────────
 
-export type SignalState = 'NORMAL' | 'RED' | 'GREEN' | 'EMERGENCY_PRIORITY';
+export type SignalState =
+  | 'NORMAL'
+  | 'RED'
+  | 'GREEN'
+  | 'PREPARING'
+  | 'PRIORITY'
+  | 'PASSING'
+  | 'RESTORING'
+  | 'EMERGENCY_PRIORITY';
 
 export interface TrafficSignal {
   id: string;

@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
-    <node id="N_START" x="0.0" y="300.0" type="priority"/>
-    <node id="SIG-01" x="0.0" y="200.0" type="traffic_light" tl="SIG-01"/>
-    <node id="SIG-02" x="0.0" y="100.0" type="traffic_light" tl="SIG-02"/>
-    <node id="HOSPITAL" x="0.0" y="0.0" type="priority"/>
+    <!-- Main Emergency Corridor -->
+    <node id="N_START"    x="0.0" y="400.0" type="dead_end"/>
+    <node id="SIG-01"     x="0.0" y="240.0" type="traffic_light" tl="SIG-01"/>
+    <node id="SIG-02"     x="0.0" y="180.0" type="traffic_light" tl="SIG-02"/>
+    <node id="SIG-03"     x="0.0" y="120.0" type="traffic_light" tl="SIG-03"/>
+    <node id="SIG-04"     x="0.0" y="60.0"  type="traffic_light" tl="SIG-04"/>
+    <node id="HOSPITAL"   x="0.0" y="10.0"  type="dead_end"/>
 
-    <!-- Cross road 1 nodes -->
-    <node id="SIG01_W" x="-100.0" y="200.0" type="priority"/>
-    <node id="SIG01_E" x="100.0" y="200.0" type="priority"/>
+    <!-- Cross road 1 at SIG-01 -->
+    <node id="SIG01_W"    x="-100.0" y="240.0" type="priority"/>
+    <node id="SIG01_E"    x="100.0"  y="240.0" type="priority"/>
 
-    <!-- Cross road 2 nodes -->
-    <node id="SIG02_W" x="-100.0" y="100.0" type="priority"/>
-    <node id="SIG02_E" x="100.0" y="100.0" type="priority"/>
+    <!-- Cross road 2 at SIG-02 -->
+    <node id="SIG02_W"    x="-100.0" y="180.0" type="priority"/>
+    <node id="SIG02_E"    x="100.0"  y="180.0" type="priority"/>
+
+    <!-- Cross road 3 at SIG-03 -->
+    <node id="SIG03_W"    x="-100.0" y="120.0" type="priority"/>
+    <node id="SIG03_E"    x="100.0"  y="120.0" type="priority"/>
+
+    <!-- Cross road 4 at SIG-04 -->
+    <node id="SIG04_W"    x="-100.0" y="60.0"  type="priority"/>
+    <node id="SIG04_E"    x="100.0"  y="60.0"  type="priority"/>
 </nodes>

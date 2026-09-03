@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AmbulanceStatus } from './AmbulanceStatus';
 import { AIRecommendationCard } from './AIRecommendationCard';
 import { SignalStatus } from './SignalStatus';
@@ -24,6 +24,7 @@ interface EmergencyPanelProps {
   telemetry: TelemetryData | null;
   connectionStatus?: ConnectionStatus;
   recommendation?: AIRecommendation;
+  events?: EmergencyEvent[];
   onExecuteRecommendation?: () => void;
   onDismissRecommendation?: () => void;
 }
@@ -32,6 +33,7 @@ export function EmergencyPanel({
   telemetry,
   connectionStatus,
   recommendation,
+  events,
   onExecuteRecommendation,
   onDismissRecommendation,
 }: EmergencyPanelProps) {
@@ -39,7 +41,6 @@ export function EmergencyPanel({
   const amb = telemetry?.ambulance;
   const traffic = telemetry?.traffic;
   const coordinator = useMemo(() => new PoliceCoordinator(), []);
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<string[]>([]);
 
   // Compute live corridor & police assignments from current telemetry
   const { assignments, corridorPlan } = useMemo(() => {
@@ -63,62 +64,31 @@ export function EmergencyPanel({
     return { assignments: officerAssignments, corridorPlan: corridor };
   }, [coordinator, amb?.speedKmh, amb?.currentRoad, amb?.status, amb?.id, telemetry?.simulation.elapsedTime]);
 
-  // Construct dynamic timeline events strictly from active telemetry & police coordination
-  const liveEvents = useMemo(() => {
-    if (!telemetry) return [];
-
-    const events: EmergencyEvent[] = [
-      {
-        id: 'evt-001',
-        timestamp: telemetry.simulation.elapsedTime,
-        type: 'TELEMETRY_UPDATE',
-        description:
-          amb?.status === 'ARRIVED'
-            ? `AMB-01 ARRIVED AT ${telemetry.mission.destination} (Time Saved: ${telemetry.mission.timeSaved}s)`
-            : `AMB-01 En Route on ${amb?.currentRoad} (Next: ${amb?.nextSignal})`,
-        severity: amb?.status === 'ARRIVED' ? ('SUCCESS' as const) : ('CRITICAL' as const),
-        relatedUnit: 'AMB-01',
-      },
-    ];
-
-    // Add Police Officer Alert Events
-    for (const assignment of assignments) {
-      if (assignment.status !== 'UNASSIGNED') {
-        const isAck = acknowledgedAlerts.includes(`ALERT-${assignment.signalId}`);
-        events.push({
-          id: `evt-police-${assignment.signalId}`,
-          timestamp: Math.max(0, telemetry.simulation.elapsedTime - 1),
-          type: 'POLICE_ALERT',
-          description: isAck
-            ? `Alert ACKNOWLEDGED by ${assignment.officerName} at ${assignment.signalId}`
-            : `DEMO Alert Dispatched to ${assignment.officerName} (${assignment.signalId}) — ETA ${assignment.etaSeconds}s`,
-          severity: isAck ? ('SUCCESS' as const) : ('WARNING' as const),
-          relatedSignal: assignment.signalId,
-        });
+  // Render pure state-transition events audit trail from canonical pipeline
+  const combinedEvents = useMemo(() => {
+    if (!events || events.length === 0) {
+      if (!telemetry || telemetry.ambulance.status === 'STAGED') {
+        return [
+          {
+            id: 'evt-system-ready',
+            timestamp: 0,
+            type: 'SYSTEM_READY',
+            description: 'ResQX Dispatch Engine Standby. Ready for emergency mission.',
+            severity: 'INFO' as const,
+            relatedUnit: 'AMB-01',
+          },
+        ];
       }
+      return [];
     }
 
-    // Add Active Signal Priority Events
-    for (const s of telemetry.signals) {
-      if (s.emergencyState !== 'NORMAL') {
-        events.push({
-          id: `evt-${s.id}`,
-          timestamp: telemetry.simulation.elapsedTime,
-          type: 'SIGNAL_PRIORITY',
-          description: `${s.id} State: ${s.emergencyState}`,
-          severity:
-            s.emergencyState === 'EMERGENCY PRIORITY'
-              ? ('CRITICAL' as const)
-              : s.emergencyState === 'PREPARING'
-              ? ('WARNING' as const)
-              : ('SUCCESS' as const),
-          relatedSignal: s.id,
-        });
-      }
-    }
-
-    return events;
-  }, [telemetry, amb, assignments, acknowledgedAlerts]);
+    const seen = new Set<string>();
+    return events.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [events, telemetry]);
 
   const activeRecommendation =
     recommendation ??
@@ -154,7 +124,7 @@ export function EmergencyPanel({
       <PoliceCoordinationCard
         assignments={assignments}
         onAlertAcknowledged={(alertId) => {
-          setAcknowledgedAlerts((prev) => [...prev, alertId]);
+          console.log('[ResQX Alert] Acknowledged:', alertId);
         }}
       />
 
@@ -183,7 +153,7 @@ export function EmergencyPanel({
 
       <PerformanceBenchmarkCard />
 
-      <EventTimeline events={liveEvents} />
+      <EventTimeline events={combinedEvents} />
     </aside>
   );
 }

@@ -27,6 +27,52 @@ export interface CorridorDispatchResult {
 
 const SUMO_SERVER_URL = 'http://localhost:8000';
 
+export interface ExecuteControlOptions {
+  serverUrl?: string;
+  onLocalSignalChange?: (signalId: string, state: string, pattern?: string) => void;
+}
+
+/**
+ * Executes safety-validated signal commands across both SUMO backend and local simulation.
+ * Strict Safety Gate: If validation.decision !== 'APPROVED', NO signal actions will be executed.
+ */
+export async function executeValidatedControl(
+  validation: SafetyValidationResult,
+  options: ExecuteControlOptions = {}
+): Promise<CorridorDispatchResult> {
+  const timestamp = Date.now();
+
+  // Strict Safety Gate
+  if (validation.decision !== 'APPROVED' || validation.approvedCommands.length === 0) {
+    return {
+      corridorId: validation.corridorId,
+      success: false,
+      dispatchedCommands: [],
+      timestamp,
+    };
+  }
+
+  const results: SignalDispatchResult[] = [];
+
+  for (const cmd of validation.approvedCommands) {
+    // Apply to local simulation adapter if registered
+    if (options.onLocalSignalChange) {
+      options.onLocalSignalChange(cmd.signalId, cmd.authorizedPhase, cmd.sumoStatePattern);
+    }
+
+    // Dispatch to SUMO backend bridge
+    const res = await dispatchSingleCommand(cmd, options.serverUrl ?? SUMO_SERVER_URL);
+    results.push(res);
+  }
+
+  return {
+    corridorId: validation.corridorId,
+    success: true,
+    dispatchedCommands: results,
+    timestamp,
+  };
+}
+
 /**
  * Dispatches validated signal commands to SUMO TraCI via the HTTP bridge.
  */

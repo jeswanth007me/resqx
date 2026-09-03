@@ -19,6 +19,17 @@ interface VehicleTargetState {
   color: string;
 }
 
+interface HudLabelItem {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  category?: 'ambulance' | 'junction' | 'hospital' | 'traffic';
+  status?: string;
+  isAmb?: boolean;
+  isBraking?: boolean;
+}
+
 export function SimulationViewport3D({
   telemetry,
   followAmbulance,
@@ -65,9 +76,7 @@ export function SimulationViewport3D({
   const corridorFutureRibbonRef = useRef<THREE.Mesh | null>(null);
 
   // HTML overlay positioning for HUD labels
-  const [hudLabels, setHudLabels] = useState<
-    Array<{ id: string; label: string; x: number; y: number; isAmb?: boolean; isBraking?: boolean }>
-  >([]);
+  const [hudLabels, setHudLabels] = useState<HudLabelItem[]>([]);
 
   // Convert SUMO (sumoX, sumoY, sumoAngle) to 3D World space (X, Y, Z, rotationY)
   // SUMO corridor geometry: N_START (100, 300) -> SIG-01 (100, 200) -> SIG-02 (100, 100) -> HOSPITAL (100, 0)
@@ -98,10 +107,11 @@ export function SimulationViewport3D({
     scene.fog = new THREE.FogExp2('#060e20', 0.0025);
     sceneRef.current = scene;
 
-    // 2. Camera (Presentation Camera Framing - Focused on AMB-01 & Next Signal)
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
-    camera.position.set(22, 24, -95);
-    camera.lookAt(0, 1.2, -35);
+    // 2. Camera (Fixed Elevated Three-Quarter Command View at ~38° downward angle)
+    // Simultaneously frames: AMB-01 (Z=-120), SIG-01 (Z=-40), SIG-03 (Z=40), and HOSPITAL (Z=115)
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
+    camera.position.set(45, 50, -70);
+    camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -111,7 +121,7 @@ export function SimulationViewport3D({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.toneMappingExposure = 1.25;
     rendererRef.current = renderer;
 
     containerRef.current.innerHTML = '';
@@ -121,29 +131,30 @@ export function SimulationViewport3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.minDistance = 10;
-    controls.maxDistance = 250;
+    controls.target.set(0, 2, 0);
+    controls.maxPolarAngle = Math.PI / 2 - 0.08;
+    controls.minDistance = 15;
+    controls.maxDistance = 260;
     controlsRef.current = controls;
 
-    // 5. Ambient & Key Lighting
-    const ambientLight = new THREE.AmbientLight('#1e293b', 2.0);
+    // 5. Ambient & Key Lighting (Clean ITS Digital Twin Lighting)
+    const ambientLight = new THREE.AmbientLight('#1e293b', 2.2);
     scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight('#38bdf8', '#0f172a', 1.0);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight('#e2e8f0', 2.5);
-    dirLight.position.set(70, 110, 40);
+    const dirLight = new THREE.DirectionalLight('#f8fafc', 2.2);
+    dirLight.position.set(60, 100, 30);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 10;
     dirLight.shadow.camera.far = 300;
-    dirLight.shadow.camera.left = -120;
-    dirLight.shadow.camera.right = 120;
-    dirLight.shadow.camera.top = 170;
-    dirLight.shadow.camera.bottom = -170;
+    dirLight.shadow.camera.left = -110;
+    dirLight.shadow.camera.right = 110;
+    dirLight.shadow.camera.top = 160;
+    dirLight.shadow.camera.bottom = -160;
     scene.add(dirLight);
 
     // ─── GROUND PLANE & ENVIRONMENT ──────────────────────────────────────────
@@ -281,14 +292,14 @@ export function SimulationViewport3D({
       arm.position.set(isRight ? -1.5 : 1.5, 7.9, 0);
       lampGroup.add(arm);
 
-      // Light Fixture & Soft Cyan PointLight
+      // Light Fixture & Soft PointLight
       const fixtureGeo = new THREE.SphereGeometry(0.35, 12, 12);
-      const fixtureMat = new THREE.MeshBasicMaterial({ color: '#38bdf8' });
+      const fixtureMat = new THREE.MeshBasicMaterial({ color: '#94a3b8' });
       const fixture = new THREE.Mesh(fixtureGeo, fixtureMat);
       fixture.position.set(isRight ? -2.8 : 2.8, 7.7, 0);
       lampGroup.add(fixture);
 
-      const lampLight = new THREE.PointLight('#38bdf8', 1.4, 25);
+      const lampLight = new THREE.PointLight('#cbd5e1', 0.8, 20);
       lampLight.position.set(isRight ? -2.8 : 2.8, 7.5, 0);
       lampGroup.add(lampLight);
 
@@ -300,7 +311,7 @@ export function SimulationViewport3D({
       createStreetLamp(14.5, z, true);
     });
 
-    // ─── BACKGROUND CITY BUILDINGS (SET BACK AT X <= -75 & X >= 75) ─────────
+    // ─── BACKGROUND CITY BUILDINGS (MODEST CIVIC / COMMERCIAL BLOCKS) ───────
     const buildingGroup = new THREE.Group();
     scene.add(buildingGroup);
 
@@ -318,12 +329,11 @@ export function SimulationViewport3D({
       block.name = title;
       block.position.set(x, 0, z);
 
-      // Main facade body (Low height to serve as background backdrop)
       const bodyGeo = new THREE.BoxGeometry(width, height, depth);
       const bodyMat = new THREE.MeshStandardMaterial({
         color: color,
-        roughness: 0.5,
-        metalness: 0.5,
+        roughness: 0.6,
+        metalness: 0.4,
       });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       body.position.y = height / 2;
@@ -351,208 +361,149 @@ export function SimulationViewport3D({
       buildingGroup.add(block);
     };
 
-    // Buildings are set back to X = -75 and X = +75 (BACKGROUND ONLY!)
-    createBuildingBlock(-75, -100, 30, 70, 14, '#111b2e', '#38bdf8', 'TECH PARK A');
-    createBuildingBlock(75, -100, 30, 70, 16, '#172238', '#ffb95f', 'COMMERCIAL PLAZA');
-    createBuildingBlock(-75, 0, 30, 55, 12, '#111b2e', '#818cf8', 'FINANCIAL TOWER');
-    createBuildingBlock(75, 0, 30, 55, 15, '#19253e', '#38bdf8', 'CIVIC CENTER');
-    createBuildingBlock(-75, 95, 30, 55, 10, '#111b2e', '#4edea3', 'RESIDENTIAL DISTRICT');
+    createBuildingBlock(-65, -95, 26, 60, 12, '#111b2e', '#38bdf8', 'NORTH CIVIC CENTER');
+    createBuildingBlock(65, -95, 26, 60, 14, '#172238', '#ffb95f', 'COMMERCIAL TOWER');
+    createBuildingBlock(-65, 0, 26, 50, 11, '#111b2e', '#818cf8', 'MUNICIPAL COMPLEX');
+    createBuildingBlock(65, 0, 26, 50, 13, '#19253e', '#38bdf8', 'TECH DISTRICT');
+    createBuildingBlock(-65, 95, 26, 50, 9, '#111b2e', '#4edea3', 'SOUTHERN PRECINCT');
 
-    // Asynchronously Load External Static City Environment GLB (SCALED DOWN FOR BACKGROUND)
-    const cityLoader = new GLTFLoader();
-    cityLoader.load(
-      '/models/city/low_poly_city.glb',
-      (gltf) => {
-        const cityModel = gltf.scene;
-        cityModel.traverse((c) => {
-          if ((c as THREE.Mesh).isMesh) {
-            c.castShadow = true;
-            c.receiveShadow = true;
-          }
-        });
-        cityModel.scale.set(0.03, 0.03, 0.03);
-        cityModel.position.set(-85, 0, -40);
-        buildingGroup.add(cityModel);
-
-        const cityModel2 = cityModel.clone();
-        cityModel2.position.set(85, 0, -40);
-        cityModel2.rotation.y = Math.PI;
-        buildingGroup.add(cityModel2);
-        console.log('[ResQX 3D] low_poly_city.glb loaded cleanly in background!');
-      },
-      undefined,
-      (err) => {
-        console.warn('[ResQX 3D] low_poly_city.glb load failed, procedural fallback active:', err);
-      }
-    );
-
-    // ─── DESTINATION HOSPITAL (SET BACK AT X = 65, Z = 115) ─────────────────
+    // ─── DESTINATION HOSPITAL (CITY GENERAL HOSPITAL AT X = 48, Z = 115) ─────
     const hospitalGroup = new THREE.Group();
-    hospitalGroup.position.set(65, 0, 115);
+    hospitalGroup.position.set(48, 0, 115);
 
-    // Main Hospital Building (Procedural Fallback)
-    const hospBodyGeo = new THREE.BoxGeometry(38, 20, 48);
+    // Main Hospital Building
+    const hospBodyGeo = new THREE.BoxGeometry(32, 18, 42);
     const hospBodyMat = new THREE.MeshStandardMaterial({
-      color: '#132338',
-      roughness: 0.3,
-      metalness: 0.7,
+      color: '#162234',
+      roughness: 0.4,
+      metalness: 0.6,
     });
     const hospBody = new THREE.Mesh(hospBodyGeo, hospBodyMat);
-    hospBody.position.y = 10;
+    hospBody.position.y = 9;
     hospBody.castShadow = true;
     hospBody.receiveShadow = true;
     hospitalGroup.add(hospBody);
 
-    // Glowing Green Roof Trim
-    const hospTrimGeo = new THREE.BoxGeometry(39, 0.6, 49);
-    const hospTrimMat = new THREE.MeshBasicMaterial({ color: '#4edea3' });
+    // Clean Architectural Cornice Trim
+    const hospTrimGeo = new THREE.BoxGeometry(33, 0.5, 43);
+    const hospTrimMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', roughness: 0.3 });
     const hospTrim = new THREE.Mesh(hospTrimGeo, hospTrimMat);
-    hospTrim.position.y = 20.3;
+    hospTrim.position.y = 18.2;
     hospitalGroup.add(hospTrim);
 
-    // 3D Emergency Cross Symbol on Roof
-    const crossVGeo = new THREE.BoxGeometry(3.0, 1.0, 12);
-    const crossHGeo = new THREE.BoxGeometry(12, 1.0, 3.0);
-    const crossMat = new THREE.MeshBasicMaterial({ color: '#4edea3' });
+    // Red Emergency Medical Cross on Facade
+    const crossVGeo = new THREE.BoxGeometry(0.2, 5.0, 1.5);
+    const crossHGeo = new THREE.BoxGeometry(0.2, 1.5, 5.0);
+    const crossMat = new THREE.MeshBasicMaterial({ color: '#ff4444' });
 
     const crossV = new THREE.Mesh(crossVGeo, crossMat);
-    crossV.position.set(-6, 21.0, 0);
+    crossV.position.set(-16.1, 10.0, 0);
     hospitalGroup.add(crossV);
 
     const crossH = new THREE.Mesh(crossHGeo, crossMat);
-    crossH.position.set(-6, 21.0, 0);
+    crossH.position.set(-16.1, 10.0, 0);
     hospitalGroup.add(crossH);
 
-    // Helipad Circle & "H" on Roof
-    const helipadRingGeo = new THREE.RingGeometry(6, 7.5, 32);
-    const helipadRingMat = new THREE.MeshBasicMaterial({ color: '#4edea3', side: THREE.DoubleSide });
-    const helipadRing = new THREE.Mesh(helipadRingGeo, helipadRingMat);
-    helipadRing.rotation.x = -Math.PI / 2;
-    helipadRing.position.set(10, 20.4, 0);
-    hospitalGroup.add(helipadRing);
-
-    // Ambulance Bay Entrance Glow
-    const bayGlow = new THREE.PointLight('#4edea3', 4, 40);
-    bayGlow.position.set(-20, 5, -5);
+    // Ambulance Receiving Bay Lighting
+    const bayGlow = new THREE.PointLight('#38bdf8', 2.5, 30);
+    bayGlow.position.set(-17, 3.5, 0);
     hospitalGroup.add(bayGlow);
 
     scene.add(hospitalGroup);
 
-    // Asynchronously Load External Hospital GLB Model
-    const hospLoader = new GLTFLoader();
-    hospLoader.load(
-      '/models/hospital/low_poly_hospital.glb',
-      (gltf) => {
-        const hospModel = gltf.scene;
-        hospModel.traverse((c) => {
-          if ((c as THREE.Mesh).isMesh) {
-            c.castShadow = true;
-            c.receiveShadow = true;
-          }
-        });
-        const bbox = new THREE.Box3().setFromObject(hospModel);
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
-        const scaleFactor = 32 / (Math.max(size.x, size.z) || 1);
-        hospModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        hospModel.rotation.y = -Math.PI / 2;
-        hospModel.position.set(0, 0, 0);
-
-        hospitalGroup.remove(hospBody);
-        hospitalGroup.add(hospModel);
-        console.log('[ResQX 3D] low_poly_hospital.glb loaded cleanly!');
-      },
-      undefined,
-      (err) => {
-        console.warn('[ResQX 3D] low_poly_hospital.glb load failed, procedural fallback active:', err);
-      }
-    );
-
-    // ─── HIGHLY READABLE TRAFFIC SIGNALS (SIG-01 & SIG-02, HEIGHT = 16) ──────
+    // ─── REALISTIC 3D TRAFFIC SIGNAL HEADS (SIG-01 & SIG-03) ─────────────────
     const createSignalGantry = (z: number, id: string) => {
       const gantry = new THREE.Group();
+      gantry.name = id;
       gantry.position.set(0, 0, z);
 
       // Support Posts at sidewalk edges
-      const postGeo = new THREE.CylinderGeometry(0.4, 0.4, 16, 16);
-      const postMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8 });
+      const postGeo = new THREE.CylinderGeometry(0.3, 0.3, 15, 16);
+      const postMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8, roughness: 0.4 });
 
       const postLeft = new THREE.Mesh(postGeo, postMat);
-      postLeft.position.set(-14.2, 8, 0);
+      postLeft.position.set(-14.0, 7.5, 0);
       gantry.add(postLeft);
 
       const postRight = new THREE.Mesh(postGeo, postMat);
-      postRight.position.set(14.2, 8, 0);
+      postRight.position.set(14.0, 7.5, 0);
       gantry.add(postRight);
 
-      // Overhead Crossbar Truss
-      const barGeo = new THREE.BoxGeometry(28.8, 0.5, 0.5);
+      // Overhead Mast Truss
+      const barGeo = new THREE.BoxGeometry(28.4, 0.4, 0.4);
       const bar = new THREE.Mesh(barGeo, postMat);
-      bar.position.set(0, 15.5, 0);
+      bar.position.set(0, 14.5, 0);
       gantry.add(bar);
 
-      // Signal Housing Box (Enlarged for readability)
-      const boxGeo = new THREE.BoxGeometry(5.5, 2.0, 1.0);
-      const boxMat = new THREE.MeshStandardMaterial({ color: '#091122', metalness: 0.9, roughness: 0.2 });
-      const box = new THREE.Mesh(boxGeo, boxMat);
-      box.position.set(-6.5, 14.5, 0);
-      gantry.add(box);
+      // Vertical 3-Aspect Signal Head Housing (Red top, Amber middle, Green bottom)
+      const headHousingGeo = new THREE.BoxGeometry(1.8, 5.2, 1.2);
+      const headHousingMat = new THREE.MeshStandardMaterial({
+        color: '#0f172a',
+        metalness: 0.9,
+        roughness: 0.2,
+      });
 
-      // 3 Signal Light Bulbs (Enlarged Red, Yellow, Green)
-      const bulbGeo = new THREE.SphereGeometry(0.75, 16, 16);
+      // Signal Head 1 (Northbound Lane at X = -6.5)
+      const head1 = new THREE.Mesh(headHousingGeo, headHousingMat);
+      head1.position.set(-6.5, 13.5, 0);
+      gantry.add(head1);
 
-      const redMat = new THREE.MeshStandardMaterial({ color: '#690005', roughness: 0.3 });
-      const yellowMat = new THREE.MeshStandardMaterial({ color: '#472a00', roughness: 0.3 });
-      const greenMat = new THREE.MeshStandardMaterial({ color: '#003824', roughness: 0.3 });
+      // Signal Head 2 (Southbound Lane at X = 6.5)
+      const head2 = new THREE.Mesh(headHousingGeo, headHousingMat);
+      head2.position.set(6.5, 13.5, 0);
+      gantry.add(head2);
 
-      const redBulb = new THREE.Mesh(bulbGeo, redMat);
-      redBulb.position.set(-8.0, 14.5, 0.4);
-      gantry.add(redBulb);
+      // 3 Signal Aspect Bulbs (Top Red, Middle Amber, Bottom Green)
+      const bulbGeo = new THREE.SphereGeometry(0.55, 16, 16);
+      const visorGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.4, 16, 1, true, 0, Math.PI);
+      const visorMat = new THREE.MeshStandardMaterial({ color: '#090d16', roughness: 0.3 });
 
-      const yellowBulb = new THREE.Mesh(bulbGeo, yellowMat);
-      yellowBulb.position.set(-6.5, 14.5, 0.4);
-      gantry.add(yellowBulb);
+      const redMat = new THREE.MeshStandardMaterial({ color: '#ff4444', emissive: '#ff4444', emissiveIntensity: 1.0, roughness: 0.2 });
+      const yellowMat = new THREE.MeshStandardMaterial({ color: '#332200', emissive: '#000000', emissiveIntensity: 0, roughness: 0.3 });
+      const greenMat = new THREE.MeshStandardMaterial({ color: '#003311', emissive: '#000000', emissiveIntensity: 0, roughness: 0.3 });
 
-      const greenBulb = new THREE.Mesh(bulbGeo, greenMat);
-      greenBulb.position.set(-5.0, 14.5, 0.4);
-      gantry.add(greenBulb);
+      // Add aspects to Head 1
+      const addAspectsToHead = (headX: number) => {
+        // Red (Top)
+        const redBulb = new THREE.Mesh(bulbGeo, redMat);
+        redBulb.position.set(headX, 15.0, 0.5);
+        gantry.add(redBulb);
+        const visorRed = new THREE.Mesh(visorGeo, visorMat);
+        visorRed.rotation.x = Math.PI / 2;
+        visorRed.position.set(headX, 15.3, 0.5);
+        gantry.add(visorRed);
 
-      // Asynchronously Load External Traffic Light GLB
-      const sigLoader = new GLTFLoader();
-      sigLoader.load(
-        '/models/signals/city_traffic_light.glb',
-        (gltf) => {
-          const sigModel = gltf.scene;
-          sigModel.traverse((c) => {
-            if ((c as THREE.Mesh).isMesh) {
-              c.castShadow = true;
-              c.receiveShadow = true;
-            }
-          });
-          const bbox = new THREE.Box3().setFromObject(sigModel);
-          const size = new THREE.Vector3();
-          bbox.getSize(size);
-          const scaleFactor = 14 / (size.y || 1);
-          sigModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
-          sigModel.position.set(-14.2, 0, 0);
-          gantry.add(sigModel);
-          console.log(`[ResQX 3D] city_traffic_light.glb loaded cleanly for ${id}!`);
-        },
-        undefined,
-        (err) => {
-          console.warn(`[ResQX 3D] city_traffic_light.glb load failed for ${id}:`, err);
-        }
-      );
+        // Amber (Middle)
+        const yellowBulb = new THREE.Mesh(bulbGeo, yellowMat);
+        yellowBulb.position.set(headX, 13.5, 0.5);
+        gantry.add(yellowBulb);
+        const visorYellow = new THREE.Mesh(visorGeo, visorMat);
+        visorYellow.rotation.x = Math.PI / 2;
+        visorYellow.position.set(headX, 13.8, 0.5);
+        gantry.add(visorYellow);
 
-      // Emergency Light PointLight
-      const sigLight = new THREE.PointLight('#4edea3', 0, 30);
-      sigLight.position.set(0, 14, 0);
+        // Green (Bottom)
+        const greenBulb = new THREE.Mesh(bulbGeo, greenMat);
+        greenBulb.position.set(headX, 12.0, 0.5);
+        gantry.add(greenBulb);
+        const visorGreen = new THREE.Mesh(visorGeo, visorMat);
+        visorGreen.rotation.x = Math.PI / 2;
+        visorGreen.position.set(headX, 12.3, 0.5);
+        gantry.add(visorGreen);
+      };
+
+      addAspectsToHead(-6.5);
+      addAspectsToHead(6.5);
+
+      // Subtle Intersection PointLight
+      const sigLight = new THREE.PointLight('#34d399', 0, 30);
+      sigLight.position.set(0, 13, 0);
       gantry.add(sigLight);
 
-      // Priority Road Surface Glow Frame (Width 28, Length 22)
-      const priorityFrameGeo = new THREE.PlaneGeometry(28, 22);
+      // Flat Restrained Ground Priority Frame (Matching 2D Tactical View)
+      const priorityFrameGeo = new THREE.PlaneGeometry(26, 18);
       const priorityFrameMat = new THREE.MeshBasicMaterial({
-        color: '#4edea3',
+        color: '#34d399',
         transparent: true,
         opacity: 0,
         side: THREE.DoubleSide,
@@ -580,23 +531,23 @@ export function SimulationViewport3D({
     };
 
     createSignalGantry(-40, 'SIG-01');
-    createSignalGantry(40, 'SIG-02');
+    createSignalGantry(40, 'SIG-03');
 
-    // ─── EMERGENCY CORRIDOR RIBBONS ──────────────────────────────────────────
-    const activeRibbonGeo = new THREE.PlaneGeometry(14, 1);
+    // ─── RESTRAINED EMERGENCY CORRIDOR ROAD HIGHLIGHT (MATCHING 2D TACTICAL) ───
+    const activeRibbonGeo = new THREE.PlaneGeometry(12, 1);
     const activeRibbonMat = new THREE.MeshBasicMaterial({
-      color: '#4edea3',
+      color: '#34d399',
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,
     });
     const activeRibbon = new THREE.Mesh(activeRibbonGeo, activeRibbonMat);
     activeRibbon.rotation.x = -Math.PI / 2;
-    activeRibbon.position.set(0, 0.04, 0);
+    activeRibbon.position.set(0, 0.035, 0);
     scene.add(activeRibbon);
     corridorActiveRibbonRef.current = activeRibbon;
 
-    const futureRibbonGeo = new THREE.PlaneGeometry(8, 1);
+    const futureRibbonGeo = new THREE.PlaneGeometry(6, 1);
     const futureRibbonMat = new THREE.MeshBasicMaterial({
       color: '#38bdf8',
       transparent: true,
@@ -605,7 +556,7 @@ export function SimulationViewport3D({
     });
     const futureRibbon = new THREE.Mesh(futureRibbonGeo, futureRibbonMat);
     futureRibbon.rotation.x = -Math.PI / 2;
-    futureRibbon.position.set(0, 0.035, 0);
+    futureRibbon.position.set(0, 0.03, 0);
     scene.add(futureRibbon);
     corridorFutureRibbonRef.current = futureRibbon;
 
@@ -863,56 +814,93 @@ export function SimulationViewport3D({
     }
 
     const updateSignalState = (
-      sigId: 'SIG-01' | 'SIG-02',
+      sigId: 'SIG-01' | 'SIG-03',
       redMat: THREE.MeshStandardMaterial | null,
       yellowMat: THREE.MeshStandardMaterial | null,
       greenMat: THREE.MeshStandardMaterial | null,
       light: THREE.PointLight | null,
       priorityPlane: THREE.Mesh | null
     ) => {
-      const sig = telemetry?.signals.find((s) => s.id === sigId);
+      const sig = telemetry?.signals.find(
+        (s) => s.id === sigId || (sigId === 'SIG-03' && (s.id === 'SIG-02' || s.id === 'SIG-03'))
+      );
       const state = sig?.emergencyState ?? 'NORMAL';
 
       if (!redMat || !yellowMat || !greenMat || !light || !priorityPlane) return;
 
-      if (state === 'EMERGENCY PRIORITY') {
-        redMat.color.setHex(0x690005);
-        yellowMat.color.setHex(0x472a00);
+      if (state === 'EMERGENCY PRIORITY' || (state as string) === 'PRIORITY') {
+        redMat.color.setHex(0x330000);
+        redMat.emissive.setHex(0x000000);
+        redMat.emissiveIntensity = 0;
+
+        yellowMat.color.setHex(0x332200);
+        yellowMat.emissive.setHex(0x000000);
+        yellowMat.emissiveIntensity = 0;
+
         greenMat.color.setHex(0x4edea3);
         greenMat.emissive.setHex(0x4edea3);
-        greenMat.emissiveIntensity = 1.2;
+        greenMat.emissiveIntensity = 2.0;
+
         light.color.setHex(0x4edea3);
-        light.intensity = 6;
+        light.intensity = 8;
 
         priorityPlane.visible = true;
         (priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.35;
       } else if (state === 'PREPARING') {
-        redMat.color.setHex(0x690005);
+        redMat.color.setHex(0x330000);
+        redMat.emissive.setHex(0x000000);
+        redMat.emissiveIntensity = 0;
+
         yellowMat.color.setHex(0xffb95f);
         yellowMat.emissive.setHex(0xffb95f);
-        yellowMat.emissiveIntensity = 1.0;
-        greenMat.color.setHex(0x003824);
+        yellowMat.emissiveIntensity = 1.8;
+
+        greenMat.color.setHex(0x003311);
+        greenMat.emissive.setHex(0x000000);
         greenMat.emissiveIntensity = 0;
+
         light.color.setHex(0xffb95f);
-        light.intensity = 3;
+        light.intensity = 5;
 
         priorityPlane.visible = true;
-        (priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.15;
+        (priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.18;
+      } else if (state === 'RESTORED' || (state as string) === 'RESTORING') {
+        redMat.color.setHex(0x330000);
+        redMat.emissive.setHex(0x000000);
+        redMat.emissiveIntensity = 0;
+
+        yellowMat.color.setHex(0x38bdf8);
+        yellowMat.emissive.setHex(0x38bdf8);
+        yellowMat.emissiveIntensity = 1.2;
+
+        greenMat.color.setHex(0x003311);
+        greenMat.emissive.setHex(0x000000);
+        greenMat.emissiveIntensity = 0;
+
+        light.color.setHex(0x38bdf8);
+        light.intensity = 3;
+
+        priorityPlane.visible = false;
       } else {
         redMat.color.setHex(0xff5451);
-        yellowMat.color.setHex(0x472a00);
-        greenMat.color.setHex(0x003824);
-        redMat.emissiveIntensity = 0.6;
-        yellowMat.emissiveIntensity = 0;
-        greenMat.emissiveIntensity = 0;
-        light.intensity = 0;
+        redMat.emissive.setHex(0xff5451);
+        redMat.emissiveIntensity = 0.9;
 
+        yellowMat.color.setHex(0x332200);
+        yellowMat.emissive.setHex(0x000000);
+        yellowMat.emissiveIntensity = 0;
+
+        greenMat.color.setHex(0x003311);
+        greenMat.emissive.setHex(0x000000);
+        greenMat.emissiveIntensity = 0;
+
+        light.intensity = 0;
         priorityPlane.visible = false;
       }
     };
 
     updateSignalState('SIG-01', sig01RedBulbRef.current, sig01YellowBulbRef.current, sig01GreenBulbRef.current, sig01LightRef.current, sig01PriorityPlaneRef.current);
-    updateSignalState('SIG-02', sig02RedBulbRef.current, sig02YellowBulbRef.current, sig02GreenBulbRef.current, sig02LightRef.current, sig02PriorityPlaneRef.current);
+    updateSignalState('SIG-03', sig02RedBulbRef.current, sig02YellowBulbRef.current, sig02GreenBulbRef.current, sig02LightRef.current, sig02PriorityPlaneRef.current);
 
     if (corridorActiveRibbonRef.current && corridorFutureRibbonRef.current) {
       const isActiveMission = isRunning && amb?.status !== 'STAGED' && amb?.status !== 'ARRIVED';
@@ -921,7 +909,7 @@ export function SimulationViewport3D({
         const ambP = mapSumoTo3D(amb.x, amb.y);
         const nextSigId = amb.nextSignal ?? 'SIG-01';
         let targetZ = -40;
-        if (nextSigId === 'SIG-02') targetZ = 40;
+        if (nextSigId === 'SIG-03' || nextSigId === 'SIG-02') targetZ = 40;
         else if (nextSigId === 'HOSPITAL' || ambP.z > 30) targetZ = 120;
 
         const activeLen = Math.max(1, targetZ - ambP.z);
@@ -1037,12 +1025,20 @@ export function SimulationViewport3D({
       });
     }
 
-    // Update Floating HUD Overlay Badges
+    // Update Floating HUD Overlay Badges (Ambulance, Traffic, Junctions, Hospital)
     if (cameraRef.current && containerRef.current) {
-      const labels: Array<{ id: string; label: string; x: number; y: number; isAmb?: boolean; isBraking?: boolean }> = [];
+      const labels: Array<{
+        id: string;
+        label: string;
+        x: number;
+        y: number;
+        category?: 'ambulance' | 'junction' | 'hospital' | 'traffic';
+        status?: string;
+      }> = [];
       const tempVec = new THREE.Vector3();
       const rect = containerRef.current.getBoundingClientRect();
 
+      // 1. Ambulance Badge
       if (ambGroupRef.current && amb) {
         tempVec.setFromMatrixPosition(ambGroupRef.current.matrixWorld);
         tempVec.y += 3.8;
@@ -1053,13 +1049,53 @@ export function SimulationViewport3D({
 
         labels.push({
           id: 'AMB-01',
-          label: `AMB-01 • ${amb.speedKmh} km/h`,
+          label: `🚑 AMB-01 • ${amb.speedKmh} km/h`,
           x,
           y,
-          isAmb: true,
+          category: 'ambulance',
         });
       }
 
+      // 2. Junction SIG-01 (North Gate)
+      const sig01 = telemetry?.signals.find((s) => s.id === 'SIG-01');
+      const sig01State = sig01?.emergencyState ?? 'NORMAL';
+      tempVec.set(-14.0, 16.5, -40);
+      tempVec.project(cameraRef.current);
+      labels.push({
+        id: 'SIG-01-HUD',
+        label: `SIG-01 • North Gate [${sig01State}]`,
+        x: ((tempVec.x + 1) * rect.width) / 2,
+        y: ((-tempVec.y + 1) * rect.height) / 2,
+        category: 'junction',
+        status: sig01State,
+      });
+
+      // 3. Junction SIG-03 (Central Junction)
+      const sig03 = telemetry?.signals.find((s) => s.id === 'SIG-03' || s.id === 'SIG-02');
+      const sig03State = sig03?.emergencyState ?? 'NORMAL';
+      tempVec.set(-14.0, 16.5, 40);
+      tempVec.project(cameraRef.current);
+      labels.push({
+        id: 'SIG-03-HUD',
+        label: `SIG-03 • Central Junction [${sig03State}]`,
+        x: ((tempVec.x + 1) * rect.width) / 2,
+        y: ((-tempVec.y + 1) * rect.height) / 2,
+        category: 'junction',
+        status: sig03State,
+      });
+
+      // 4. Destination Hospital Landmark Badge
+      tempVec.set(48, 20.0, 115);
+      tempVec.project(cameraRef.current);
+      labels.push({
+        id: 'HOSPITAL-HUD',
+        label: `🏥 City General Hospital • Trauma Center`,
+        x: ((tempVec.x + 1) * rect.width) / 2,
+        y: ((-tempVec.y + 1) * rect.height) / 2,
+        category: 'hospital',
+      });
+
+      // 5. Normal Traffic Vehicle Badges
       vehicleMeshesRef.current.forEach((group, id) => {
         const targetState = vehicleTargetsRef.current.get(id);
         const isBraking = targetState ? targetState.speedKmh < 5 : false;
@@ -1073,11 +1109,11 @@ export function SimulationViewport3D({
 
         labels.push({
           id,
-          label: isBraking ? `${id} • HOLDING` : id,
+          label: isBraking ? `${id} • HOLDING (RED)` : `${id} • ${targetState?.speedKmh ?? 30} km/h`,
           x,
           y,
-          isAmb: false,
-          isBraking,
+          category: 'traffic',
+          status: isBraking ? 'HOLDING' : 'MOVING',
         });
       });
 
@@ -1093,17 +1129,31 @@ export function SimulationViewport3D({
       {/* Floating 3D HUD Badges Overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {hudLabels.map((item) => {
-          if (item.x < 0 || item.x > 1200 || item.y < 0 || item.y > 800) return null;
+          if (item.x < -100 || item.x > 1400 || item.y < -50 || item.y > 900) return null;
+
+          let badgeStyle = 'bg-[#060e20]/85 text-[#dae2fd] border-[#334155]';
+          if (item.category === 'ambulance') {
+            badgeStyle = 'bg-[#060e20]/95 text-[#ffb3ad] border-[#ff5451] shadow-[0_0_12px_rgba(255,84,81,0.4)]';
+          } else if (item.category === 'hospital') {
+            badgeStyle = 'bg-[#060e20]/95 text-[#4edea3] border-[#4edea3] shadow-[0_0_12px_rgba(78,222,163,0.3)]';
+          } else if (item.category === 'junction') {
+            if (item.status === 'EMERGENCY PRIORITY' || item.status === 'PRIORITY') {
+              badgeStyle = 'bg-[#060e20]/95 text-[#4edea3] border-[#4edea3] shadow-[0_0_16px_rgba(78,222,163,0.5)] font-bold';
+            } else if (item.status === 'PREPARING') {
+              badgeStyle = 'bg-[#060e20]/95 text-[#ffb95f] border-[#ffb95f] shadow-[0_0_12px_rgba(255,185,95,0.4)] font-bold';
+            } else if (item.status === 'RESTORED') {
+              badgeStyle = 'bg-[#060e20]/95 text-[#38bdf8] border-[#38bdf8]';
+            } else {
+              badgeStyle = 'bg-[#060e20]/85 text-[#dae2fd] border-[#334155]';
+            }
+          } else if (item.category === 'traffic' && item.status === 'HOLDING') {
+            badgeStyle = 'bg-[#060e20]/95 text-[#ffb95f] border-[#ffb95f]';
+          }
+
           return (
             <div
               key={item.id}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded text-[11px] font-data font-bold shadow-lg border backdrop-blur-md transition-all duration-75 ${
-                item.isAmb
-                  ? 'bg-[#060e20]/95 text-[#ffb3ad] border-[#ff5451]'
-                  : item.isBraking
-                  ? 'bg-[#060e20]/95 text-[#ffb95f] border-[#ffb95f]'
-                  : 'bg-[#060e20]/85 text-[#dae2fd] border-[#334155]'
-              }`}
+              className={`absolute transform -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded text-[11px] font-data font-semibold shadow-lg border backdrop-blur-md transition-all duration-75 ${badgeStyle}`}
               style={{ left: `${item.x}px`, top: `${item.y}px` }}
             >
               {item.label}

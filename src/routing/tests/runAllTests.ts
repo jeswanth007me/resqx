@@ -26,5 +26,8 @@ await import('../../services/tests/police.test.ts');
 console.log('\n>>> 7/8: RUNNING EXPERIMENTAL BENCHMARKING TESTS...\n');
 await import('../../benchmarking/tests/benchmark.test.ts');
 
-console.log('\n>>> 8/8: RUNNING 2D TACTICAL COMMAND-CENTER TESTS...\n');
+console.log('\n>>> 8/9: RUNNING 2D TACTICAL COMMAND-CENTER TESTS...\n');
 await import('../../components/tests/tacticalView.test.ts');
+
+console.log('\n>>> 9/9: RUNNING CANONICAL RUNTIME PIPELINE INTEGRATION TESTS...\n');
+await import('../../controllers/tests/runtimePipeline.test.ts');

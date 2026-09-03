@@ -30,44 +30,47 @@ export function SimulationControls({
             {t.simulation.scenarioSelection}
           </label>
           <div className="flex gap-2">
-            <button className="px-4 py-2 bg-surface-container-highest text-on-surface font-body text-sm rounded-lg hover:bg-outline-variant transition-all border-none cursor-pointer">
+            <button
+              type="button"
+              className="px-4 py-2 bg-primary/20 text-primary border border-primary/40 font-body text-sm rounded-lg hover:bg-primary/30 transition-all cursor-pointer font-semibold"
+            >
               Corridor Emergency
             </button>
-            <button className="px-4 py-2 bg-surface-container-highest text-on-surface-variant font-body text-sm rounded-lg opacity-60 border-none cursor-not-allowed">
+            <button
+              type="button"
+              className="px-4 py-2 bg-surface-container-highest text-on-surface-variant font-body text-sm rounded-lg opacity-50 border-none cursor-not-allowed"
+              title="Secondary scenario available in advanced mode"
+            >
               High-Rise Fire
             </button>
           </div>
         </div>
       </div>
 
-      {/* Playback Controls */}
+      {/* Playback Controls & Speed */}
       <div className="flex items-center gap-4">
         <div className="flex items-center bg-surface-container-lowest rounded-full p-1 gap-1 border border-outline-variant/30">
           <button
+            type="button"
             onClick={isRunning ? onPause : onStart}
-            disabled={!isConnected}
-            className={`p-3 rounded-full transition-all flex items-center justify-center border-none ${
-              !isConnected
-                ? 'opacity-40 cursor-not-allowed text-on-surface-variant'
-                : isRunning
-                ? 'text-secondary hover:bg-secondary/10 cursor-pointer'
-                : 'text-primary hover:bg-primary/10 cursor-pointer'
+            className={`p-3 rounded-full transition-all flex items-center justify-center border-none cursor-pointer ${
+              isRunning
+                ? 'text-secondary bg-secondary/10 hover:bg-secondary/20'
+                : 'text-primary hover:bg-primary/10'
             }`}
             aria-label={isRunning ? t.controls.pause : t.controls.play}
-            title={!isConnected ? 'SUMO Disconnected' : isRunning ? 'Pause Simulation' : 'Start SUMO Simulation'}
+            title={isRunning ? 'Pause Simulation' : 'Start Simulation'}
           >
             <span className="material-symbols-outlined">
               {isRunning ? 'pause' : 'play_arrow'}
             </span>
           </button>
           <button
+            type="button"
             onClick={onReset}
-            disabled={!isConnected}
-            className={`p-3 rounded-full transition-all flex items-center justify-center border-none bg-transparent ${
-              !isConnected ? 'opacity-40 cursor-not-allowed text-on-surface-variant' : 'text-on-surface-variant hover:bg-surface-variant cursor-pointer'
-            }`}
+            className="p-3 rounded-full transition-all flex items-center justify-center border-none bg-transparent text-on-surface-variant hover:bg-surface-variant cursor-pointer"
             aria-label={t.controls.reset}
-            title={!isConnected ? 'SUMO Disconnected' : 'Reset Simulation to READY State'}
+            title="Reset Simulation to Initial Staged State"
           >
             <span className="material-symbols-outlined">replay</span>
           </button>
@@ -80,33 +83,35 @@ export function SimulationControls({
           </span>
           {([1, 2, 5] as const).map((s) => (
             <button
+              type="button"
               key={s}
               onClick={() => onSpeedChange(s)}
-              disabled={!isConnected}
-              className={`px-3 py-1.5 rounded-lg font-data text-xs font-semibold transition-all border-none ${
-                !isConnected
-                  ? 'bg-surface-container-highest text-on-surface-variant opacity-40 cursor-not-allowed'
-                  : speed === s
-                  ? 'bg-primary text-on-primary shadow-sm cursor-pointer'
-                  : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high cursor-pointer'
+              className={`px-3 py-1.5 rounded-lg font-data text-xs font-semibold transition-all border-none cursor-pointer ${
+                speed === s
+                  ? 'bg-primary text-on-primary shadow-sm'
+                  : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'
               }`}
             >
               {s}x
             </button>
           ))}
         </div>
+
+        {/* Operational Status Tag */}
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-outline-variant/30">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-secondary animate-pulse' : 'bg-tertiary'}`} />
+          <span className="text-[10px] font-data font-bold uppercase text-on-surface-variant">
+            {isConnected ? 'SUMO LIVE' : 'LOCAL FALLBACK'}
+          </span>
+        </div>
       </div>
 
       {/* Start Emergency Button */}
       <div className="flex items-center gap-[var(--spacing-gutter)]">
         <button
+          type="button"
           onClick={onStart}
-          disabled={!isConnected}
-          className={`flex items-center gap-2 px-6 py-3 font-headline font-semibold text-sm rounded-xl transition-all uppercase tracking-wider border-none shadow-lg ${
-            isConnected
-              ? 'bg-error-container text-on-error-container hover:brightness-110 cursor-pointer'
-              : 'bg-surface-container-highest text-on-surface-variant opacity-40 cursor-not-allowed'
-          }`}
+          className="flex items-center gap-2 px-6 py-3 font-headline font-semibold text-sm rounded-xl transition-all uppercase tracking-wider border-none shadow-lg bg-error text-on-error hover:brightness-110 active:scale-95 cursor-pointer"
         >
           <span className="material-symbols-outlined">warning</span>
           {t.simulation.startEmergency}

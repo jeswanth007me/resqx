@@ -36,14 +36,15 @@ if sumo_bin not in os.environ["PATH"]:
 
 import traci
 
-# Signal Positions (from network geometry)
+# Signal Positions (from network geometry — generated network.net.xml, SUMO internal coords)
+# x = 100.00 (centred after netconvert's netOffset=100,-10)
+# y values are post-netconvert: input y=240,180,120,60 → internal y=230,170,110,50
 SIG_POSITIONS = {
-    "SIG-01": (100.0, 200.0),
-    "SIG-02": (100.0, 100.0),
+    "SIG-01": (100.0, 230.0),
+    "SIG-02": (100.0, 170.0),
+    "SIG-03": (100.0, 110.0),
+    "SIG-04": (100.0, 50.0),
 }
-
-THRESHOLD_PREPARING = 100.0
-THRESHOLD_PRIORITY = 45.0
 
 # ─── Shared Telemetry State ───────────────────────────────────────────
 
@@ -63,6 +64,8 @@ class TelemetryBridge:
         self.signal_states = {
             "SIG-01": "NORMAL",
             "SIG-02": "NORMAL",
+            "SIG-03": "NORMAL",
+            "SIG-04": "NORMAL",
         }
         
         self.signals_prioritized_count = 0
@@ -95,6 +98,8 @@ class TelemetryBridge:
             "signals": [
                 {"id": "SIG-01", "state": "GGGrr", "emergencyState": "NORMAL", "distanceFromAmbulance": 100.0},
                 {"id": "SIG-02", "state": "GGGrr", "emergencyState": "NORMAL", "distanceFromAmbulance": 200.0},
+                {"id": "SIG-03", "state": "GGGrr", "emergencyState": "NORMAL", "distanceFromAmbulance": 300.0},
+                {"id": "SIG-04", "state": "GGGrr", "emergencyState": "NORMAL", "distanceFromAmbulance": 400.0},
             ],
             "traffic": {
                 "level": "MODERATE",
@@ -158,7 +163,7 @@ class TelemetryBridge:
         self.running = False
         self.stop_sumo()
         self.step = 0
-        self.signal_states = {"SIG-01": "NORMAL", "SIG-02": "NORMAL"}
+        self.signal_states = {"SIG-01": "NORMAL", "SIG-02": "NORMAL", "SIG-03": "NORMAL", "SIG-04": "NORMAL"}
         self.signals_prioritized_count = 0
         self.intersections_cleared_count = 0
         
@@ -173,8 +178,8 @@ class TelemetryBridge:
     def simulation_loop(self):
         while True:
             # Simulation speed sleep calculation:
-            # 1x speed = 0.5s per step (gives judges ~14 seconds to observe the mission)
-            sleep_time = 0.5 / max(1, self.speed)
+            # 1x speed = 0.8s per step (provides a realistic ~2-3 minute demo corridor run)
+            sleep_time = 0.8 / max(1, self.speed)
             time.sleep(sleep_time)
 
             if not self.running:
@@ -247,25 +252,37 @@ class TelemetryBridge:
                             traci.trafficlight.setProgram("SIG-02", "0")
                             print("[SUMO Bridge] AMB-01 passed SIG-02 -> RESTORED")
 
+                        next_sig = "SIG-03"
+                        sig_pos = SIG_POSITIONS["SIG-03"]
+                        dist_to_sig = math.hypot(pos[0] - sig_pos[0], pos[1] - sig_pos[1])
+                    elif road_id in ("E_CORRIDOR_4", ":SIG-03_0", ":SIG-03_1", ":SIG-03_2"):
+                        if self.signal_states["SIG-03"] in ("PREPARING", "EMERGENCY PRIORITY"):
+                            self.signal_states["SIG-03"] = "RESTORED"
+                            self.intersections_cleared_count = max(self.intersections_cleared_count, 3)
+                            traci.trafficlight.setProgram("SIG-03", "0")
+                            print("[SUMO Bridge] AMB-01 passed SIG-03 -> RESTORED")
+
+                        next_sig = "SIG-04"
+                        sig_pos = SIG_POSITIONS["SIG-04"]
+                        dist_to_sig = math.hypot(pos[0] - sig_pos[0], pos[1] - sig_pos[1])
+                    elif road_id in ("E_CORRIDOR_5", ":SIG-04_0", ":SIG-04_1", ":SIG-04_2"):
+                        if self.signal_states["SIG-04"] in ("PREPARING", "EMERGENCY PRIORITY"):
+                            self.signal_states["SIG-04"] = "RESTORED"
+                            self.intersections_cleared_count = max(self.intersections_cleared_count, 4)
+                            traci.trafficlight.setProgram("SIG-04", "0")
+                            print("[SUMO Bridge] AMB-01 passed SIG-04 -> RESTORED")
+
                         next_sig = "HOSPITAL"
-                        dist_to_sig = math.hypot(pos[0] - 100.0, pos[1] - 0.0)
+                        dist_to_sig = math.hypot(pos[0] - 100.0, pos[1] - 10.0)
 
-                    # Check Signal Priority Transitions
-                    if next_sig in ("SIG-01", "SIG-02"):
-                        curr_state = self.signal_states[next_sig]
-                        if dist_to_sig <= THRESHOLD_PREPARING and curr_state == "NORMAL":
-                            self.signal_states[next_sig] = "PREPARING"
-                            print(f"[SUMO Bridge] AMB-01 approaching {next_sig} -> PREPARING")
+                    # Signal states and TraCI overrides are commanded via /api/signal
+                    # by the canonical TypeScript Decision Engine -> Safety Validator -> Signal Controller pipeline.
 
-                        if dist_to_sig <= THRESHOLD_PRIORITY and curr_state in ("NORMAL", "PREPARING"):
-                            self.signal_states[next_sig] = "EMERGENCY PRIORITY"
-                            self.signals_prioritized_count += 1
-                            traci.trafficlight.setRedYellowGreenState(next_sig, "GGGrr")
-                            print(f"[SUMO Bridge] {next_sig} -> EMERGENCY PRIORITY (GGGrr)")
-
-                    # Calculate distances for all signals
+                    # Calculate distances for all four signals
                     sig01_dist = math.hypot(pos[0] - SIG_POSITIONS["SIG-01"][0], pos[1] - SIG_POSITIONS["SIG-01"][1])
                     sig02_dist = math.hypot(pos[0] - SIG_POSITIONS["SIG-02"][0], pos[1] - SIG_POSITIONS["SIG-02"][1])
+                    sig03_dist = math.hypot(pos[0] - SIG_POSITIONS["SIG-03"][0], pos[1] - SIG_POSITIONS["SIG-03"][1])
+                    sig04_dist = math.hypot(pos[0] - SIG_POSITIONS["SIG-04"][0], pos[1] - SIG_POSITIONS["SIG-04"][1])
 
                     eta = int(dist_to_sig / max(speed_mps, 1.0))
 
@@ -301,6 +318,18 @@ class TelemetryBridge:
                                 "state": traci.trafficlight.getRedYellowGreenState("SIG-02") if "SIG-02" in tl_ids else "GGGrr",
                                 "emergencyState": self.signal_states["SIG-02"],
                                 "distanceFromAmbulance": round(sig02_dist, 1),
+                            },
+                            {
+                                "id": "SIG-03",
+                                "state": traci.trafficlight.getRedYellowGreenState("SIG-03") if "SIG-03" in tl_ids else "GGGrr",
+                                "emergencyState": self.signal_states["SIG-03"],
+                                "distanceFromAmbulance": round(sig03_dist, 1),
+                            },
+                            {
+                                "id": "SIG-04",
+                                "state": traci.trafficlight.getRedYellowGreenState("SIG-04") if "SIG-04" in tl_ids else "GGGrr",
+                                "emergencyState": self.signal_states["SIG-04"],
+                                "distanceFromAmbulance": round(sig04_dist, 1),
                             },
                         ],
                         "traffic": {
@@ -340,18 +369,19 @@ class TelemetryBridge:
                     arrived_dict["ambulance"]["speedKmh"] = 0.0
                     arrived_dict["ambulance"]["distanceToNextSignal"] = 0.0
                     arrived_dict["ambulance"]["etaSeconds"] = 0
-                    arrived_dict["mission"]["intersectionsCleared"] = 2
+                    arrived_dict["mission"]["intersectionsCleared"] = self.intersections_cleared_count
                     arrived_dict["mission"]["timeSaved"] = 17.0
                     arrived_dict["traffic"]["vehicles"] = telemetry_vehicles
-                    
+
                     self.telemetry = arrived_dict
                     arrived_json = json.dumps(arrived_dict)
                     with self.telemetry_lock:
                         self.telemetry_json_str = arrived_json
 
+                    # Keep SUMO connected after mission complete so signal control API
+                    # remains operational for testing and demonstration.
                     self.running = False
-                    self.stop_sumo()
-                    print("[SUMO Bridge] AMB-01 ARRIVED AT HOSPITAL. Telemetry mission complete.")
+                    print("[SUMO Bridge] AMB-01 ARRIVED AT HOSPITAL. Telemetry mission complete. SUMO kept live for signal control.")
 
             except Exception as e:
                 print(f"[SUMO Bridge] Error in simulation step: {e}")
@@ -395,10 +425,20 @@ class TelemetryBridge:
             return {"status": "error", "message": "Missing signalId or state"}
 
         state_upper = state.upper()
-        if signal_id not in ("SIG-01", "SIG-02"):
+        if signal_id not in ("SIG-01", "SIG-02", "SIG-03", "SIG-04"):
             return {"status": "error", "message": f"Unknown signal: {signal_id}"}
 
         try:
+            # Ensure TraCI is connected and alive before issuing any traci.* calls.
+            if not self.traci_connected:
+                self.start_sumo()
+            # Verify the TraCI socket is still alive by issuing a trivial query.
+            try:
+                traci.trafficlight.getIDList()
+            except Exception:
+                # TraCI connection was lost (SUMO may have ended). Reconnect.
+                self.stop_sumo()
+                self.start_sumo()
             if state_upper == "PREPARING":
                 self.signal_states[signal_id] = "PREPARING"
                 actual_pattern = pattern if pattern and pattern != "0" else "yyyrr"
@@ -457,29 +497,42 @@ class ResQXHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
 
+    def handle_error(self, request, client_address):
+        exc_type, _, _ = sys.exc_info()
+        if exc_type in (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, socket.error):
+            return  # Silently ignore abrupt client disconnections
+        super().handle_error(request, client_address)
+
 # ─── HTTP Server Handler with Explicit Response Length & Flush ────────
 
 class TelemetryHTTPHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def _send_json(self, content_data, status_code=200):
-        if isinstance(content_data, bytes):
-            body_bytes = content_data
-        elif isinstance(content_data, str):
-            body_bytes = content_data.encode("utf-8")
-        else:
-            body_bytes = json.dumps(content_data).encode("utf-8")
+    def log_message(self, format, *args):
+        # Concise logging, suppress noisy aborted connection traces
+        pass
 
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body_bytes)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(body_bytes)
-        self.wfile.flush()
+    def _send_json(self, content_data, status_code=200):
+        try:
+            if isinstance(content_data, bytes):
+                body_bytes = content_data
+            elif isinstance(content_data, str):
+                body_bytes = content_data.encode("utf-8")
+            else:
+                body_bytes = json.dumps(content_data).encode("utf-8")
+
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body_bytes)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(body_bytes)
+            self.wfile.flush()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, socket.error, OSError):
+            pass
 
     def do_OPTIONS(self):
         self._send_json({}, 200)

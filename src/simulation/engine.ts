@@ -57,7 +57,8 @@ export const pointOnRoad = (road: Road, progress: number): Point => {
 
 export const tick = (state: SimulationState, deltaSeconds: number): SimulationState => {
   const elapsed = deltaSeconds * state.speed;
-  const progress = Math.min(1, state.ambulance.progress + (elapsed * state.ambulance.speed) / 505);
+  // Scaled for ~125s scenario at 1x, ~62s at 2x, ~25s at 5x
+  const progress = Math.min(1, state.ambulance.progress + (elapsed * state.ambulance.speed) / 6500);
 
   // Dynamic route lookup
   const routeRoads = ['ROAD-01', 'ROAD-03'];
@@ -69,21 +70,8 @@ export const tick = (state: SimulationState, deltaSeconds: number): SimulationSt
   // Signal priority state progression along route
   const signal = progress < 0.45 ? 'SIG-01' : progress < 0.95 ? 'SIG-03' : null;
 
-  const updatedSignals = state.signals.map((sig) => {
-    if (sig.id === 'SIG-01') {
-      if (progress >= 0.45) return { ...sig, state: 'GREEN' as const };
-      if (progress >= 0.25) return { ...sig, state: 'EMERGENCY_PRIORITY' as const };
-      if (progress >= 0.1) return { ...sig, state: 'GREEN' as const };
-      return sig;
-    }
-    if (sig.id === 'SIG-03') {
-      if (progress >= 0.95) return { ...sig, state: 'GREEN' as const };
-      if (progress >= 0.7) return { ...sig, state: 'EMERGENCY_PRIORITY' as const };
-      if (progress >= 0.55) return { ...sig, state: 'GREEN' as const };
-      return sig;
-    }
-    return sig;
-  });
+  // Signals are controlled via the canonical Decision Engine -> Safety Validator -> Signal Controller pipeline
+  const updatedSignals = state.signals;
 
   return {
     ...state,
@@ -101,7 +89,7 @@ export const tick = (state: SimulationState, deltaSeconds: number): SimulationSt
       const stoppedAtRed = redSignal && vehicle.road === 'ROAD-02' && vehicle.progress >= 0.45 && vehicle.progress <= 0.58;
       return {
         ...vehicle,
-        progress: stoppedAtRed ? vehicle.progress : (vehicle.progress + (elapsed * vehicle.speed) / 1600) % 1,
+        progress: stoppedAtRed ? vehicle.progress : (vehicle.progress + (elapsed * vehicle.speed) / 6500) % 1,
       };
     }),
   };
@@ -124,6 +112,10 @@ export function simulationStateToTelemetry(state: SimulationState): TelemetryDat
       progressOnCurrentRoad,
       status: state.ambulance.status,
     },
+    signals: [
+      { id: 'SIG-01', name: 'North Corridor Signal', road: 'ROAD-01' },
+      { id: 'SIG-03', name: 'Central Junction Signal', road: 'ROAD-03' },
+    ],
   });
 
   // Map 2D coordinates (300, y) to SUMO viewport coordinates (100, 300 -> 100, 0)
@@ -156,8 +148,14 @@ export function simulationStateToTelemetry(state: SimulationState): TelemetryDat
 
   const telemetrySignals: TelemetrySignal[] = state.signals.map((sig) => {
     let emergencyState = 'NORMAL';
-    if (sig.state === 'EMERGENCY_PRIORITY') emergencyState = 'EMERGENCY PRIORITY';
-    else if (sig.state === 'GREEN') emergencyState = 'PREPARING';
+    if (sig.state === 'EMERGENCY_PRIORITY' || (sig.state as string) === 'PRIORITY' || (sig.state as string) === 'PASSING') {
+      emergencyState = 'EMERGENCY PRIORITY';
+    } else if (sig.state === 'GREEN' || (sig.state as string) === 'PREPARING') {
+      emergencyState = 'PREPARING';
+    } else if ((sig.state as string) === 'RESTORING' || (sig.state as string) === 'RESTORED') {
+      emergencyState = 'RESTORED';
+    }
+
     return {
       id: sig.id,
       state: sig.state === 'RED' ? 'rrrGG' : 'GGGrr',
@@ -172,8 +170,13 @@ export function simulationStateToTelemetry(state: SimulationState): TelemetryDat
   const nextSignal = state.ambulance.progress < 0.45 ? 'SIG-01' : state.ambulance.progress < 0.95 ? 'SIG-03' : 'HOSPITAL';
   const distToNext = nextSignal === 'SIG-01' ? Math.max(0, 150 - state.ambulance.position.y) : nextSignal === 'SIG-03' ? Math.max(0, 400 - state.ambulance.position.y) : 0;
 
-  const signalsPrioritized = state.ambulance.progress >= 0.7 ? 2 : state.ambulance.progress >= 0.25 ? 1 : 0;
+  const signalsPrioritized = state.signals.filter((s) => s.state === 'EMERGENCY_PRIORITY' || (s.state as string) === 'PRIORITY').length;
   const intersectionsCleared = state.ambulance.progress >= 0.95 ? 2 : state.ambulance.progress >= 0.45 ? 1 : 0;
+
+  const remainingEtaSeconds = Math.max(0, Math.round((1 - state.ambulance.progress) * 125));
+  const etaSeconds = Number.isFinite(etaResult.estimatedTravelTime) && etaResult.estimatedTravelTime > 0
+    ? Math.round(etaResult.estimatedTravelTime)
+    : remainingEtaSeconds;
 
   return {
     simulation: {
@@ -192,7 +195,7 @@ export function simulationStateToTelemetry(state: SimulationState): TelemetryDat
       currentRoad: currentRoadId,
       nextSignal,
       distanceToNextSignal: Math.round(distToNext),
-      etaSeconds: Math.round(etaResult.estimatedTravelTime),
+      etaSeconds,
     },
     signals: telemetrySignals,
     traffic: {
@@ -204,9 +207,9 @@ export function simulationStateToTelemetry(state: SimulationState): TelemetryDat
       origin: 'N_START',
       destination: 'HOSPITAL',
       elapsedTime: Math.round(state.simulationTime * 10) / 10,
-      estimatedNormalTime: 45.0,
-      estimatedResQXTime: 28.0,
-      timeSaved: Math.max(0, Math.round((45.0 - state.simulationTime) * 10) / 10),
+      estimatedNormalTime: 180.0,
+      estimatedResQXTime: 125.0,
+      timeSaved: Math.max(0, Math.round(state.ambulance.progress * 55.0 * 10) / 10),
       signalsPrioritized,
       intersectionsCleared,
     },

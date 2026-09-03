@@ -6,7 +6,7 @@
     </input>
     <time>
         <begin value="0"/>
-        <end value="150"/>
+        <end value="500"/>
         <step-length value="1.0"/>
     </time>
 </configuration>
