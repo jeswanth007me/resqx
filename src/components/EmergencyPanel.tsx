@@ -184,6 +184,7 @@ export function EmergencyPanel() {
         signals={signalStatuses}
       />
 
+      {/* Persistent emergency audit timeline */}
       <EventTimeline
         events={state.events}
       />
