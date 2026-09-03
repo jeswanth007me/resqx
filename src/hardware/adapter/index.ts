@@ -1,0 +1,1 @@
+export { MockSignalHardwareAdapter } from './mockSignalHardwareAdapter';
