@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { TelemetryData } from '../types/telemetry';
+import type { TelemetryData, TelemetryVehicle } from '../types/telemetry';
 
 interface SimulationViewport3DProps {
   telemetry: TelemetryData | null;
@@ -45,6 +45,25 @@ const SIGNAL_CONFIGS = [
   { id: 'SIG-04', name: 'South Corridor', sumoY: 50, worldZ: 80 },
 ] as const;
 
+/**
+ * Parses color strings from SUMO (Hex "#0066cc", comma-separated RGB "0,102,204", or named color)
+ */
+function parseVehicleColor(rawColor?: string, fallback = '#38bdf8'): string {
+  if (!rawColor) return fallback;
+  const trimmed = rawColor.trim();
+  if (trimmed.startsWith('#')) return trimmed;
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',').map((p) => parseInt(p.trim(), 10));
+    if (parts.length >= 3 && parts.every((n) => !Number.isNaN(n))) {
+      return `#${parts
+        .slice(0, 3)
+        .map((n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0'))
+        .join('')}`;
+    }
+  }
+  return trimmed;
+}
+
 export function SimulationViewport3D({
   telemetry,
   followAmbulance,
@@ -85,15 +104,20 @@ export function SimulationViewport3D({
 
   // Convert SUMO (sumoX, sumoY, sumoAngle) to 3D World space (X, Y, Z, rotationY)
   // SUMO corridor geometry: N_START (100, 300) -> SIG-01 (100, 230) -> SIG-02 (100, 170) -> SIG-03 (100, 110) -> SIG-04 (100, 50) -> HOSPITAL (100, 0)
-  // In 3D World (scale 0.8):
-  // Z = -120 at N_START (y=300), Z = -64 at SIG-01 (y=230), Z = -16 at SIG-02 (y=170), Z = 32 at SIG-03 (y=110), Z = 80 at SIG-04 (y=50), Z = 120 at HOSPITAL (y=0)
-  // X = 0 at sumoX=100
+  // Cross streets span East-West across X ≈ 0 to 200 (centered at X=100)
+  // In 3D World (isotropic scale 0.8):
+  // worldX = (sumoX - 100) * 0.8
+  // worldZ = (150 - sumoY) * 0.8
   const mapSumoTo3D = (sumoX: number, sumoY: number, sumoAngle: number = 180) => {
-    const worldZ = (150 - sumoY) * 0.8;
-    const worldX = (sumoX - 100) * 0.70;
+    const validX = Number.isFinite(sumoX) ? sumoX : 100;
+    const validY = Number.isFinite(sumoY) ? sumoY : 150;
+    const validAngle = Number.isFinite(sumoAngle) ? sumoAngle : 180;
+
+    const worldZ = (150 - validY) * 0.8;
+    const worldX = (validX - 100) * 0.8;
 
     // Convert SUMO heading angle (180° = South, 0° = North, 90° = East, 270° = West)
-    const normAngle = ((sumoAngle % 360) + 360) % 360;
+    const normAngle = ((validAngle % 360) + 360) % 360;
     const rotY = ((180 - normAngle) * Math.PI) / 180;
 
     return { x: worldX, y: 0, z: worldZ, rotY, normAngle };
@@ -112,7 +136,7 @@ export function SimulationViewport3D({
     scene.fog = new THREE.FogExp2('#060e20', 0.0022);
     sceneRef.current = scene;
 
-    // 2. Camera (Elevated Command View capturing the entire 4-signal corridor)
+    // 2. Camera (Elevated Command View capturing the full 4-signal corridor)
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
     camera.position.set(52, 65, -80);
     camera.lookAt(0, 2, 10);
@@ -717,7 +741,7 @@ export function SimulationViewport3D({
         }
       }
 
-      // Smooth Lerp for Traffic Vehicles
+      // Smooth Lerp for Real SUMO Traffic Vehicles
       vehicleMeshesRef.current.forEach((mesh, id) => {
         const targetState = vehicleTargetsRef.current.get(id);
         if (!targetState) return;
@@ -731,14 +755,17 @@ export function SimulationViewport3D({
         targetState.currentRotY += deltaRot * 0.12;
         mesh.rotation.y = targetState.currentRotY;
 
-        // Dynamic Brake Light Glow
+        // Dynamic Brake Light Glow using Real SUMO Speed
         const taillightMat = vehicleTaillightMatsRef.current.get(id);
         if (taillightMat) {
-          const isBraking = targetState.speedKmh < 5 || targetState.speedKmh < targetState.prevSpeedKmh - 3;
+          const isBraking =
+            targetState.speedKmh < 3.0 ||
+            (targetState.prevSpeedKmh > 8.0 && targetState.speedKmh < targetState.prevSpeedKmh - 2.5);
+
           if (isBraking) {
             taillightMat.color.setHex(0xff0000);
             taillightMat.emissive.setHex(0xff0000);
-            taillightMat.emissiveIntensity = 1.2;
+            taillightMat.emissiveIntensity = 1.4;
           } else {
             taillightMat.color.setHex(0xff5451);
             taillightMat.emissive.setHex(0x660000);
@@ -775,9 +802,9 @@ export function SimulationViewport3D({
   useEffect(() => {
     const amb = telemetry?.ambulance;
     const isRunning = telemetry?.simulation.running ?? false;
-    const vehicles = telemetry?.traffic.vehicles ?? [];
+    const vehicles: TelemetryVehicle[] = telemetry?.traffic.vehicles ?? [];
 
-    if (amb) {
+    if (amb && Number.isFinite(amb.x) && Number.isFinite(amb.y)) {
       const p = mapSumoTo3D(amb.x, amb.y, amb.angle ?? 180);
       ambTargetPosRef.current.set(p.x, 0, p.z);
       ambTargetRotYRef.current = p.rotY;
@@ -911,24 +938,27 @@ export function SimulationViewport3D({
       }
     }
 
-    // Render Normal Traffic Vehicles (CAR-01 to CAR-04)
+    // Render Real SUMO Traffic Vehicles (Including Main Corridor & Cross-Street Vehicles)
     if (vehiclesGroupRef.current) {
       const currentIds = new Set<string>();
 
       vehicles
-        .filter((v) => v.id !== 'AMB-01')
+        .filter((v) => v.id !== 'AMB-01' && v.type !== 'emergency')
         .forEach((v) => {
+          if (!v.id || !Number.isFinite(v.x) || !Number.isFinite(v.y)) return;
+
           currentIds.add(v.id);
-          const p = mapSumoTo3D(v.x, v.y, v.angle);
+          const p = mapSumoTo3D(v.x, v.y, v.angle ?? 180);
+          const carColor = parseVehicleColor(v.color, '#0066cc');
 
           let carGroup = vehicleMeshesRef.current.get(v.id);
           let targetState = vehicleTargetsRef.current.get(v.id);
 
           if (!carGroup) {
             carGroup = new THREE.Group();
+            carGroup.name = `vehicle-${v.id}`;
 
             const bodyGeo = new THREE.BoxGeometry(2.8, 1.6, 6.0);
-            const carColor = v.color || '#4edea3';
             const bodyMat = new THREE.MeshStandardMaterial({
               color: carColor,
               roughness: 0.4,
@@ -976,19 +1006,20 @@ export function SimulationViewport3D({
               targetPos: new THREE.Vector3(p.x, 0, p.z),
               targetRotY: p.rotY,
               currentRotY: p.rotY,
-              speedKmh: v.speedKmh,
-              prevSpeedKmh: v.speedKmh,
+              speedKmh: v.speedKmh ?? 0,
+              prevSpeedKmh: v.speedKmh ?? 0,
               color: carColor,
             };
             vehicleTargetsRef.current.set(v.id, targetState);
           } else if (targetState) {
             targetState.prevSpeedKmh = targetState.speedKmh;
-            targetState.speedKmh = v.speedKmh;
+            targetState.speedKmh = v.speedKmh ?? 0;
             targetState.targetPos.set(p.x, 0, p.z);
             targetState.targetRotY = p.rotY;
           }
         });
 
+      // Safely remove vehicle meshes that left the simulation
       vehicleMeshesRef.current.forEach((mesh, id) => {
         if (!currentIds.has(id)) {
           vehiclesGroupRef.current?.remove(mesh);
@@ -999,7 +1030,7 @@ export function SimulationViewport3D({
       });
     }
 
-    // Update Floating HUD Overlay Badges (Ambulance, 4 Junctions, Hospital, Traffic)
+    // Update Floating HUD Overlay Badges (Ambulance, 4 Junctions, Hospital, Top-8 Traffic)
     if (cameraRef.current && containerRef.current) {
       const labels: Array<{
         id: string;
@@ -1021,13 +1052,15 @@ export function SimulationViewport3D({
         const x = ((tempVec.x + 1) * rect.width) / 2;
         const y = ((-tempVec.y + 1) * rect.height) / 2;
 
-        labels.push({
-          id: 'AMB-01',
-          label: `🚑 AMB-01 • ${amb.speedKmh} km/h`,
-          x,
-          y,
-          category: 'ambulance',
-        });
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          labels.push({
+            id: 'AMB-01',
+            label: `🚑 AMB-01 • ${amb.speedKmh} km/h`,
+            x,
+            y,
+            category: 'ambulance',
+          });
+        }
       }
 
       // 2. All 4 Junctions (SIG-01, SIG-02, SIG-03, SIG-04)
@@ -1038,48 +1071,88 @@ export function SimulationViewport3D({
         tempVec.set(-14.0, 16.5, sigCfg.worldZ);
         tempVec.project(cameraRef.current!);
 
-        labels.push({
-          id: `${sigCfg.id}-HUD`,
-          label: `${sigCfg.id} • ${sigCfg.name} [${sigState}]`,
-          x: ((tempVec.x + 1) * rect.width) / 2,
-          y: ((-tempVec.y + 1) * rect.height) / 2,
-          category: 'junction',
-          status: sigState,
-        });
+        const x = ((tempVec.x + 1) * rect.width) / 2;
+        const y = ((-tempVec.y + 1) * rect.height) / 2;
+
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          labels.push({
+            id: `${sigCfg.id}-HUD`,
+            label: `${sigCfg.id} • ${sigCfg.name} [${sigState}]`,
+            x,
+            y,
+            category: 'junction',
+            status: sigState,
+          });
+        }
       });
 
       // 3. Destination Hospital Landmark Badge
       tempVec.set(48, 20.0, 120);
       tempVec.project(cameraRef.current);
-      labels.push({
-        id: 'HOSPITAL-HUD',
-        label: `🏥 City General Hospital • Trauma Center`,
-        x: ((tempVec.x + 1) * rect.width) / 2,
-        y: ((-tempVec.y + 1) * rect.height) / 2,
-        category: 'hospital',
-      });
+      const hospX = ((tempVec.x + 1) * rect.width) / 2;
+      const hospY = ((-tempVec.y + 1) * rect.height) / 2;
+      if (Number.isFinite(hospX) && Number.isFinite(hospY)) {
+        labels.push({
+          id: 'HOSPITAL-HUD',
+          label: `🏥 City General Hospital • Trauma Center`,
+          x: hospX,
+          y: hospY,
+          category: 'hospital',
+        });
+      }
 
-      // 4. Normal Traffic Vehicle Badges
+      // 4. Traffic Vehicle Badges (Capped to 8 closest vehicles to preserve HUD clarity)
+      const vehicleBadgeCandidates: Array<{
+        id: string;
+        label: string;
+        x: number;
+        y: number;
+        distZ: number;
+        category: 'traffic';
+        status: string;
+      }> = [];
+
+      const ambZ = ambGroupRef.current ? ambGroupRef.current.position.z : 0;
+
       vehicleMeshesRef.current.forEach((group, id) => {
         const targetState = vehicleTargetsRef.current.get(id);
-        const isBraking = targetState ? targetState.speedKmh < 5 : false;
+        const isBraking = targetState ? targetState.speedKmh < 3.0 : false;
 
         tempVec.setFromMatrixPosition(group.matrixWorld);
+        const distZ = Math.abs(tempVec.z - ambZ);
         tempVec.y += 2.8;
         tempVec.project(cameraRef.current!);
 
         const x = ((tempVec.x + 1) * rect.width) / 2;
         const y = ((-tempVec.y + 1) * rect.height) / 2;
 
-        labels.push({
-          id,
-          label: isBraking ? `${id} • HOLDING (RED)` : `${id} • ${targetState?.speedKmh ?? 30} km/h`,
-          x,
-          y,
-          category: 'traffic',
-          status: isBraking ? 'HOLDING' : 'MOVING',
-        });
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          vehicleBadgeCandidates.push({
+            id,
+            label: isBraking ? `${id} • HOLDING (RED)` : `${id} • ${targetState?.speedKmh ?? 30} km/h`,
+            x,
+            y,
+            distZ,
+            category: 'traffic',
+            status: isBraking ? 'HOLDING' : 'MOVING',
+          });
+        }
       });
+
+      // Sort by proximity to ambulance and pick top 8
+      vehicleBadgeCandidates
+        .sort((a, b) => a.distZ - b.distZ)
+        .slice(0, 8)
+        .forEach((b) => {
+          labels.push({
+            id: b.id,
+            label: b.label,
+            x: b.x,
+            y: b.y,
+            category: b.category,
+            status: b.status,
+          });
+        });
 
       setHudLabels(labels);
     }
