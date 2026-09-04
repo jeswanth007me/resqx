@@ -30,6 +30,21 @@ interface HudLabelItem {
   isBraking?: boolean;
 }
 
+interface Signal3DRefs {
+  redBulb: THREE.MeshStandardMaterial;
+  yellowBulb: THREE.MeshStandardMaterial;
+  greenBulb: THREE.MeshStandardMaterial;
+  light: THREE.PointLight;
+  priorityPlane: THREE.Mesh;
+}
+
+const SIGNAL_CONFIGS = [
+  { id: 'SIG-01', name: 'North Gate', sumoY: 230, worldZ: -64 },
+  { id: 'SIG-02', name: 'Central Avenue', sumoY: 170, worldZ: -16 },
+  { id: 'SIG-03', name: 'Hospital Approach', sumoY: 110, worldZ: 32 },
+  { id: 'SIG-04', name: 'South Corridor', sumoY: 50, worldZ: 80 },
+] as const;
+
 export function SimulationViewport3D({
   telemetry,
   followAmbulance,
@@ -58,18 +73,8 @@ export function SimulationViewport3D({
   const vehicleTargetsRef = useRef<Map<string, VehicleTargetState>>(new Map());
   const vehicleTaillightMatsRef = useRef<Map<string, THREE.MeshStandardMaterial>>(new Map());
 
-  // Signal bulb references
-  const sig01RedBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig01YellowBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig01GreenBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig01LightRef = useRef<THREE.PointLight | null>(null);
-  const sig01PriorityPlaneRef = useRef<THREE.Mesh | null>(null);
-
-  const sig02RedBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig02YellowBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig02GreenBulbRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sig02LightRef = useRef<THREE.PointLight | null>(null);
-  const sig02PriorityPlaneRef = useRef<THREE.Mesh | null>(null);
+  // 4 Signal Gantry References (SIG-01, SIG-02, SIG-03, SIG-04)
+  const signalsMapRef = useRef<Map<string, Signal3DRefs>>(new Map());
 
   // Emergency Corridor Ribbon Objects
   const corridorActiveRibbonRef = useRef<THREE.Mesh | null>(null);
@@ -79,14 +84,14 @@ export function SimulationViewport3D({
   const [hudLabels, setHudLabels] = useState<HudLabelItem[]>([]);
 
   // Convert SUMO (sumoX, sumoY, sumoAngle) to 3D World space (X, Y, Z, rotationY)
-  // SUMO corridor geometry: N_START (100, 300) -> SIG-01 (100, 200) -> SIG-02 (100, 100) -> HOSPITAL (100, 0)
-  // In 3D World:
-  // Z = -130 at N_START (y=300), Z = -40 at SIG-01 (y=200), Z = 40 at SIG-02 (y=100), Z = 120 at HOSPITAL (y=0)
+  // SUMO corridor geometry: N_START (100, 300) -> SIG-01 (100, 230) -> SIG-02 (100, 170) -> SIG-03 (100, 110) -> SIG-04 (100, 50) -> HOSPITAL (100, 0)
+  // In 3D World (scale 0.8):
+  // Z = -120 at N_START (y=300), Z = -64 at SIG-01 (y=230), Z = -16 at SIG-02 (y=170), Z = 32 at SIG-03 (y=110), Z = 80 at SIG-04 (y=50), Z = 120 at HOSPITAL (y=0)
   // X = 0 at sumoX=100
   const mapSumoTo3D = (sumoX: number, sumoY: number, sumoAngle: number = 180) => {
-    const worldZ = ((150 - sumoY) / 150) * 120;
+    const worldZ = (150 - sumoY) * 0.8;
     const worldX = (sumoX - 100) * 0.70;
-    
+
     // Convert SUMO heading angle (180° = South, 0° = North, 90° = East, 270° = West)
     const normAngle = ((sumoAngle % 360) + 360) % 360;
     const rotY = ((180 - normAngle) * Math.PI) / 180;
@@ -104,14 +109,13 @@ export function SimulationViewport3D({
     // 1. Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#060e20');
-    scene.fog = new THREE.FogExp2('#060e20', 0.0025);
+    scene.fog = new THREE.FogExp2('#060e20', 0.0022);
     sceneRef.current = scene;
 
-    // 2. Camera (Fixed Elevated Three-Quarter Command View at ~38° downward angle)
-    // Simultaneously frames: AMB-01 (Z=-120), SIG-01 (Z=-40), SIG-03 (Z=40), and HOSPITAL (Z=115)
+    // 2. Camera (Elevated Command View capturing the entire 4-signal corridor)
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000);
-    camera.position.set(45, 50, -70);
-    camera.lookAt(0, 2, 0);
+    camera.position.set(52, 65, -80);
+    camera.lookAt(0, 2, 10);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -131,13 +135,13 @@ export function SimulationViewport3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.target.set(0, 2, 0);
+    controls.target.set(0, 2, 10);
     controls.maxPolarAngle = Math.PI / 2 - 0.08;
     controls.minDistance = 15;
-    controls.maxDistance = 260;
+    controls.maxDistance = 320;
     controlsRef.current = controls;
 
-    // 5. Ambient & Key Lighting (Clean ITS Digital Twin Lighting)
+    // 5. Lighting (Clean ITS Digital Twin Lighting)
     const ambientLight = new THREE.AmbientLight('#1e293b', 2.2);
     scene.add(ambientLight);
 
@@ -145,20 +149,20 @@ export function SimulationViewport3D({
     scene.add(hemiLight);
 
     const dirLight = new THREE.DirectionalLight('#f8fafc', 2.2);
-    dirLight.position.set(60, 100, 30);
+    dirLight.position.set(70, 120, 30);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 10;
-    dirLight.shadow.camera.far = 300;
-    dirLight.shadow.camera.left = -110;
-    dirLight.shadow.camera.right = 110;
-    dirLight.shadow.camera.top = 160;
-    dirLight.shadow.camera.bottom = -160;
+    dirLight.shadow.camera.far = 380;
+    dirLight.shadow.camera.left = -120;
+    dirLight.shadow.camera.right = 120;
+    dirLight.shadow.camera.top = 180;
+    dirLight.shadow.camera.bottom = -180;
     scene.add(dirLight);
 
     // ─── GROUND PLANE & ENVIRONMENT ──────────────────────────────────────────
-    const groundGeo = new THREE.PlaneGeometry(450, 500);
+    const groundGeo = new THREE.PlaneGeometry(450, 520);
     const groundMat = new THREE.MeshStandardMaterial({
       color: '#060e20',
       roughness: 0.9,
@@ -170,8 +174,8 @@ export function SimulationViewport3D({
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // ─── EXPANDED PROMINENT ROAD CORRIDOR (WIDTH = 26 UNITS) ────────────────
-    const boulevardGeo = new THREE.PlaneGeometry(26, 320);
+    // ─── EXPANDED MAIN EMERGENCY BOULEVARD (WIDTH = 26, LENGTH = 330) ────────
+    const boulevardGeo = new THREE.PlaneGeometry(26, 330);
     const asphaltMat = new THREE.MeshStandardMaterial({
       color: '#121a2b',
       roughness: 0.7,
@@ -179,42 +183,47 @@ export function SimulationViewport3D({
     });
     const boulevard = new THREE.Mesh(boulevardGeo, asphaltMat);
     boulevard.rotation.x = -Math.PI / 2;
-    boulevard.position.set(0, 0, 0);
+    boulevard.position.set(0, 0, 5);
     boulevard.receiveShadow = true;
     scene.add(boulevard);
 
     // Sidewalk Curbs along Boulevard
-    const curbGeo = new THREE.BoxGeometry(1.4, 0.2, 320);
+    const curbGeo = new THREE.BoxGeometry(1.4, 0.2, 330);
     const curbMat = new THREE.MeshStandardMaterial({ color: '#2a364f', roughness: 0.5 });
-    
+
     const curbLeft = new THREE.Mesh(curbGeo, curbMat);
-    curbLeft.position.set(-13.7, 0.1, 0);
+    curbLeft.position.set(-13.7, 0.1, 5);
     scene.add(curbLeft);
 
     const curbRight = new THREE.Mesh(curbGeo, curbMat);
-    curbRight.position.set(13.7, 0.1, 0);
+    curbRight.position.set(13.7, 0.1, 5);
     scene.add(curbRight);
 
     // Center Double Yellow Lines
-    const yellowLineGeo = new THREE.PlaneGeometry(0.35, 320);
+    const yellowLineGeo = new THREE.PlaneGeometry(0.35, 330);
     const yellowLineMat = new THREE.MeshBasicMaterial({ color: '#ffb95f' });
-    
+
     const yellowLine1 = new THREE.Mesh(yellowLineGeo, yellowLineMat);
     yellowLine1.rotation.x = -Math.PI / 2;
-    yellowLine1.position.set(-0.35, 0.02, 0);
+    yellowLine1.position.set(-0.35, 0.02, 5);
     scene.add(yellowLine1);
 
     const yellowLine2 = new THREE.Mesh(yellowLineGeo, yellowLineMat);
     yellowLine2.rotation.x = -Math.PI / 2;
-    yellowLine2.position.set(0.35, 0.02, 0);
+    yellowLine2.position.set(0.35, 0.02, 5);
     scene.add(yellowLine2);
 
-    // White Dashed Lane Dividers
+    // White Dashed Lane Dividers (skipping all 4 intersection zones)
     const dashedGeo = new THREE.PlaneGeometry(0.25, 3.5);
     const dashedMat = new THREE.MeshBasicMaterial({ color: '#dae2fd', opacity: 0.6, transparent: true });
-    
+
+    const isNearIntersection = (z: number) => {
+      return SIGNAL_CONFIGS.some((sig) => Math.abs(z - sig.worldZ) <= 12);
+    };
+
     for (let z = -150; z <= 150; z += 8) {
-      if ((z >= -48 && z <= -32) || (z >= 32 && z <= 48)) continue; // Skip intersections
+      if (isNearIntersection(z)) continue;
+
       const dashLeft = new THREE.Mesh(dashedGeo, dashedMat);
       dashLeft.rotation.x = -Math.PI / 2;
       dashLeft.position.set(-6.5, 0.02, z);
@@ -226,37 +235,28 @@ export function SimulationViewport3D({
       scene.add(dashRight);
     }
 
-    // Cross Street 1 (at Z = -40, width 20 along Z, length 160 along X)
-    const cross1Geo = new THREE.PlaneGeometry(160, 20);
-    const cross1 = new THREE.Mesh(cross1Geo, asphaltMat);
-    cross1.rotation.x = -Math.PI / 2;
-    cross1.position.set(0, 0.01, -40);
-    cross1.receiveShadow = true;
-    scene.add(cross1);
+    // ─── 4 CROSS STREETS (SIG-01, SIG-02, SIG-03, SIG-04) ────────────────────
+    SIGNAL_CONFIGS.forEach((sig) => {
+      const crossGeo = new THREE.PlaneGeometry(160, 20);
+      const cross = new THREE.Mesh(crossGeo, asphaltMat);
+      cross.rotation.x = -Math.PI / 2;
+      cross.position.set(0, 0.01, sig.worldZ);
+      cross.receiveShadow = true;
+      scene.add(cross);
 
-    // Cross Street 2 (at Z = 40, width 20 along Z, length 160 along X)
-    const cross2Geo = new THREE.PlaneGeometry(160, 20);
-    const cross2 = new THREE.Mesh(cross2Geo, asphaltMat);
-    cross2.rotation.x = -Math.PI / 2;
-    cross2.position.set(0, 0.01, 40);
-    cross2.receiveShadow = true;
-    scene.add(cross2);
-
-    // ─── INTERSECTION ROAD MARKINGS (STOP LINES & ZEBRA CROSSWALKS) ──────────
-    const createIntersectionMarkings = (centerZ: number) => {
+      // Stop Lines (North & South of intersection)
       const stopLineGeo = new THREE.PlaneGeometry(24, 1.0);
       const stopLineMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
 
-      // Stop Lines (Northbound & Southbound entrances)
-      const stopLineNorth = new THREE.Mesh(stopLineGeo, stopLineMat);
-      stopLineNorth.rotation.x = -Math.PI / 2;
-      stopLineNorth.position.set(0, 0.03, centerZ - 11);
-      scene.add(stopLineNorth);
+      const stopNorth = new THREE.Mesh(stopLineGeo, stopLineMat);
+      stopNorth.rotation.x = -Math.PI / 2;
+      stopNorth.position.set(0, 0.03, sig.worldZ - 11);
+      scene.add(stopNorth);
 
-      const stopLineSouth = new THREE.Mesh(stopLineGeo, stopLineMat);
-      stopLineSouth.rotation.x = -Math.PI / 2;
-      stopLineSouth.position.set(0, 0.03, centerZ + 11);
-      scene.add(stopLineSouth);
+      const stopSouth = new THREE.Mesh(stopLineGeo, stopLineMat);
+      stopSouth.rotation.x = -Math.PI / 2;
+      stopSouth.position.set(0, 0.03, sig.worldZ + 11);
+      scene.add(stopSouth);
 
       // Zebra Crosswalk Stripes
       const stripeGeo = new THREE.PlaneGeometry(1.4, 0.5);
@@ -266,16 +266,13 @@ export function SimulationViewport3D({
         for (let x = -11; x <= 11; x += 2.2) {
           const stripe = new THREE.Mesh(stripeGeo, stripeMat);
           stripe.rotation.x = -Math.PI / 2;
-          stripe.position.set(x, 0.025, centerZ + zOffset);
+          stripe.position.set(x, 0.025, sig.worldZ + zOffset);
           scene.add(stripe);
         }
       });
-    };
+    });
 
-    createIntersectionMarkings(-40);
-    createIntersectionMarkings(40);
-
-    // ─── STREET LIGHT POLES ALONG SIDEWALKS ───────────────────────────────
+    // ─── STREET LIGHT POLES ALONG SIDEWALKS ──────────────────────────────────
     const createStreetLamp = (x: number, z: number, isRight: boolean) => {
       const lampGroup = new THREE.Group();
       lampGroup.position.set(x, 0, z);
@@ -286,13 +283,11 @@ export function SimulationViewport3D({
       pole.position.y = 4.0;
       lampGroup.add(pole);
 
-      // Arm extending over road
       const armGeo = new THREE.BoxGeometry(3.0, 0.15, 0.15);
       const arm = new THREE.Mesh(armGeo, poleMat);
       arm.position.set(isRight ? -1.5 : 1.5, 7.9, 0);
       lampGroup.add(arm);
 
-      // Light Fixture & Soft PointLight
       const fixtureGeo = new THREE.SphereGeometry(0.35, 12, 12);
       const fixtureMat = new THREE.MeshBasicMaterial({ color: '#94a3b8' });
       const fixture = new THREE.Mesh(fixtureGeo, fixtureMat);
@@ -306,12 +301,12 @@ export function SimulationViewport3D({
       scene.add(lampGroup);
     };
 
-    [-130, -90, -50, -10, 30, 70, 110].forEach((z) => {
+    [-140, -100, -40, 8, 56, 104, 140].forEach((z) => {
       createStreetLamp(-14.5, z, false);
       createStreetLamp(14.5, z, true);
     });
 
-    // ─── BACKGROUND CITY BUILDINGS (MODEST CIVIC / COMMERCIAL BLOCKS) ───────
+    // ─── BACKGROUND BUILDINGS FLANKING CORRIDOR ──────────────────────────────
     const buildingGroup = new THREE.Group();
     scene.add(buildingGroup);
 
@@ -344,7 +339,7 @@ export function SimulationViewport3D({
       // Window Grid
       const windowMat = new THREE.MeshBasicMaterial({ color: windowColor });
       const winGeo = new THREE.BoxGeometry(0.2, 1.0, 1.5);
-      
+
       const rows = Math.floor(height / 3.5);
       const cols = Math.floor(depth / 6);
 
@@ -361,17 +356,18 @@ export function SimulationViewport3D({
       buildingGroup.add(block);
     };
 
-    createBuildingBlock(-65, -95, 26, 60, 12, '#111b2e', '#38bdf8', 'NORTH CIVIC CENTER');
-    createBuildingBlock(65, -95, 26, 60, 14, '#172238', '#ffb95f', 'COMMERCIAL TOWER');
-    createBuildingBlock(-65, 0, 26, 50, 11, '#111b2e', '#818cf8', 'MUNICIPAL COMPLEX');
-    createBuildingBlock(65, 0, 26, 50, 13, '#19253e', '#38bdf8', 'TECH DISTRICT');
-    createBuildingBlock(-65, 95, 26, 50, 9, '#111b2e', '#4edea3', 'SOUTHERN PRECINCT');
+    createBuildingBlock(-65, -105, 26, 50, 12, '#111b2e', '#38bdf8', 'NORTH CIVIC CENTER');
+    createBuildingBlock(65, -105, 26, 50, 14, '#172238', '#ffb95f', 'COMMERCIAL TOWER');
+    createBuildingBlock(-65, -40, 26, 40, 11, '#111b2e', '#818cf8', 'MUNICIPAL COMPLEX');
+    createBuildingBlock(65, -40, 26, 40, 13, '#19253e', '#38bdf8', 'TECH DISTRICT');
+    createBuildingBlock(-65, 10, 26, 40, 12, '#121d30', '#38bdf8', 'METRO PLAZA');
+    createBuildingBlock(65, 10, 26, 40, 15, '#172238', '#ffb95f', 'LOGISTICS HUB');
+    createBuildingBlock(-65, 60, 26, 40, 10, '#111b2e', '#4edea3', 'SOUTHERN PRECINCT');
 
-    // ─── DESTINATION HOSPITAL (CITY GENERAL HOSPITAL AT X = 48, Z = 115) ─────
+    // ─── DESTINATION HOSPITAL (CITY GENERAL HOSPITAL AT X = 48, Z = 120) ────
     const hospitalGroup = new THREE.Group();
-    hospitalGroup.position.set(48, 0, 115);
+    hospitalGroup.position.set(48, 0, 120);
 
-    // Main Hospital Building
     const hospBodyGeo = new THREE.BoxGeometry(32, 18, 42);
     const hospBodyMat = new THREE.MeshStandardMaterial({
       color: '#162234',
@@ -384,14 +380,12 @@ export function SimulationViewport3D({
     hospBody.receiveShadow = true;
     hospitalGroup.add(hospBody);
 
-    // Clean Architectural Cornice Trim
     const hospTrimGeo = new THREE.BoxGeometry(33, 0.5, 43);
     const hospTrimMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', roughness: 0.3 });
     const hospTrim = new THREE.Mesh(hospTrimGeo, hospTrimMat);
     hospTrim.position.y = 18.2;
     hospitalGroup.add(hospTrim);
 
-    // Red Emergency Medical Cross on Facade
     const crossVGeo = new THREE.BoxGeometry(0.2, 5.0, 1.5);
     const crossHGeo = new THREE.BoxGeometry(0.2, 1.5, 5.0);
     const crossMat = new THREE.MeshBasicMaterial({ color: '#ff4444' });
@@ -404,20 +398,20 @@ export function SimulationViewport3D({
     crossH.position.set(-16.1, 10.0, 0);
     hospitalGroup.add(crossH);
 
-    // Ambulance Receiving Bay Lighting
     const bayGlow = new THREE.PointLight('#38bdf8', 2.5, 30);
     bayGlow.position.set(-17, 3.5, 0);
     hospitalGroup.add(bayGlow);
 
     scene.add(hospitalGroup);
 
-    // ─── REALISTIC 3D TRAFFIC SIGNAL HEADS (SIG-01 & SIG-03) ─────────────────
+    // ─── 4 TRAFFIC SIGNAL GANTRIES (SIG-01, SIG-02, SIG-03, SIG-04) ─────────
+    signalsMapRef.current.clear();
+
     const createSignalGantry = (z: number, id: string) => {
       const gantry = new THREE.Group();
       gantry.name = id;
       gantry.position.set(0, 0, z);
 
-      // Support Posts at sidewalk edges
       const postGeo = new THREE.CylinderGeometry(0.3, 0.3, 15, 16);
       const postMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8, roughness: 0.4 });
 
@@ -429,13 +423,12 @@ export function SimulationViewport3D({
       postRight.position.set(14.0, 7.5, 0);
       gantry.add(postRight);
 
-      // Overhead Mast Truss
       const barGeo = new THREE.BoxGeometry(28.4, 0.4, 0.4);
       const bar = new THREE.Mesh(barGeo, postMat);
       bar.position.set(0, 14.5, 0);
       gantry.add(bar);
 
-      // Vertical 3-Aspect Signal Head Housing (Red top, Amber middle, Green bottom)
+      // Signal Head Housing
       const headHousingGeo = new THREE.BoxGeometry(1.8, 5.2, 1.2);
       const headHousingMat = new THREE.MeshStandardMaterial({
         color: '#0f172a',
@@ -443,17 +436,15 @@ export function SimulationViewport3D({
         roughness: 0.2,
       });
 
-      // Signal Head 1 (Northbound Lane at X = -6.5)
       const head1 = new THREE.Mesh(headHousingGeo, headHousingMat);
       head1.position.set(-6.5, 13.5, 0);
       gantry.add(head1);
 
-      // Signal Head 2 (Southbound Lane at X = 6.5)
       const head2 = new THREE.Mesh(headHousingGeo, headHousingMat);
       head2.position.set(6.5, 13.5, 0);
       gantry.add(head2);
 
-      // 3 Signal Aspect Bulbs (Top Red, Middle Amber, Bottom Green)
+      // Bulbs & Visors
       const bulbGeo = new THREE.SphereGeometry(0.55, 16, 16);
       const visorGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.4, 16, 1, true, 0, Math.PI);
       const visorMat = new THREE.MeshStandardMaterial({ color: '#090d16', roughness: 0.3 });
@@ -462,7 +453,6 @@ export function SimulationViewport3D({
       const yellowMat = new THREE.MeshStandardMaterial({ color: '#332200', emissive: '#000000', emissiveIntensity: 0, roughness: 0.3 });
       const greenMat = new THREE.MeshStandardMaterial({ color: '#003311', emissive: '#000000', emissiveIntensity: 0, roughness: 0.3 });
 
-      // Add aspects to Head 1
       const addAspectsToHead = (headX: number) => {
         // Red (Top)
         const redBulb = new THREE.Mesh(bulbGeo, redMat);
@@ -495,12 +485,10 @@ export function SimulationViewport3D({
       addAspectsToHead(-6.5);
       addAspectsToHead(6.5);
 
-      // Subtle Intersection PointLight
       const sigLight = new THREE.PointLight('#34d399', 0, 30);
       sigLight.position.set(0, 13, 0);
       gantry.add(sigLight);
 
-      // Flat Restrained Ground Priority Frame (Matching 2D Tactical View)
       const priorityFrameGeo = new THREE.PlaneGeometry(26, 18);
       const priorityFrameMat = new THREE.MeshBasicMaterial({
         color: '#34d399',
@@ -515,25 +503,18 @@ export function SimulationViewport3D({
 
       scene.add(gantry);
 
-      if (id === 'SIG-01') {
-        sig01RedBulbRef.current = redMat;
-        sig01YellowBulbRef.current = yellowMat;
-        sig01GreenBulbRef.current = greenMat;
-        sig01LightRef.current = sigLight;
-        sig01PriorityPlaneRef.current = priorityFrame;
-      } else {
-        sig02RedBulbRef.current = redMat;
-        sig02YellowBulbRef.current = yellowMat;
-        sig02GreenBulbRef.current = greenMat;
-        sig02LightRef.current = sigLight;
-        sig02PriorityPlaneRef.current = priorityFrame;
-      }
+      signalsMapRef.current.set(id, {
+        redBulb: redMat,
+        yellowBulb: yellowMat,
+        greenBulb: greenMat,
+        light: sigLight,
+        priorityPlane: priorityFrame,
+      });
     };
 
-    createSignalGantry(-40, 'SIG-01');
-    createSignalGantry(40, 'SIG-03');
+    SIGNAL_CONFIGS.forEach((sig) => createSignalGantry(sig.worldZ, sig.id));
 
-    // ─── RESTRAINED EMERGENCY CORRIDOR ROAD HIGHLIGHT (MATCHING 2D TACTICAL) ───
+    // ─── EMERGENCY CORRIDOR ROAD HIGHLIGHT RIBBONS ───────────────────────────
     const activeRibbonGeo = new THREE.PlaneGeometry(12, 1);
     const activeRibbonMat = new THREE.MeshBasicMaterial({
       color: '#34d399',
@@ -560,14 +541,14 @@ export function SimulationViewport3D({
     scene.add(futureRibbon);
     corridorFutureRibbonRef.current = futureRibbon;
 
-    // ─── PROMINENT AMBULANCE (AMB-01) 3D MESH & GLTF LOADER ──────────────────
+    // ─── AMBULANCE (AMB-01) 3D MESH & GLTF LOADER ────────────────────────────
     const ambGroup = new THREE.Group();
     scene.add(ambGroup);
     ambGroupRef.current = ambGroup;
 
-    // Procedural Fallback Mesh Group (Length 7.0)
+    // Procedural Fallback Mesh Group
     const proceduralAmbGroup = new THREE.Group();
-    
+
     const ambChassisGeo = new THREE.BoxGeometry(3.2, 2.4, 7.0);
     const ambChassisMat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
@@ -606,7 +587,7 @@ export function SimulationViewport3D({
 
     const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.5, 16);
     const wheelMat = new THREE.MeshStandardMaterial({ color: '#091122', roughness: 0.9 });
-    
+
     const w1 = new THREE.Mesh(wheelGeo, wheelMat);
     w1.rotation.z = Math.PI / 2;
     w1.position.set(-1.6, 0.6, 2.2);
@@ -632,7 +613,7 @@ export function SimulationViewport3D({
 
     // Dual Roof Emergency Strobe Lights
     const strobeLightGeo = new THREE.SphereGeometry(0.35, 12, 12);
-    
+
     const strobeRedMat = new THREE.MeshBasicMaterial({ color: '#ff0000' });
     const strobeRedMesh = new THREE.Mesh(strobeLightGeo, strobeRedMat);
     strobeRedMesh.position.set(-0.9, 2.7, 2.0);
@@ -668,7 +649,7 @@ export function SimulationViewport3D({
     headlightBeam.position.set(0, 0.8, 10.0);
     ambGroup.add(headlightBeam);
 
-    // Asynchronously Load External ambulance.glb Model (Scaled to ~7.0 units)
+    // Asynchronously Load External ambulance.glb Model
     const gltfLoader = new GLTFLoader();
     gltfLoader.load(
       '/models/vehicles/ambulance.glb',
@@ -700,7 +681,6 @@ export function SimulationViewport3D({
         }
 
         ambGroup.add(gltfModel);
-        console.log('[ResQX 3D] Real ambulance.glb integrated successfully! Scale:', scaleFactor);
       },
       undefined,
       (error) => {
@@ -721,7 +701,7 @@ export function SimulationViewport3D({
       // Smooth Lerp for AMB-01 Ambulance Position & Rotation
       if (ambGroupRef.current) {
         ambGroupRef.current.position.lerp(ambTargetPosRef.current, 0.12);
-        
+
         let deltaRot = ambTargetRotYRef.current - ambCurrentRotYRef.current;
         while (deltaRot < -Math.PI) deltaRot += Math.PI * 2;
         while (deltaRot > Math.PI) deltaRot -= Math.PI * 2;
@@ -729,7 +709,7 @@ export function SimulationViewport3D({
         ambCurrentRotYRef.current += deltaRot * 0.12;
         ambGroupRef.current.rotation.y = ambCurrentRotYRef.current;
 
-        // Presentation Follow Camera Lerp (Keeps AMB-01 in lower-middle viewport)
+        // Presentation Follow Camera Lerp
         if (followAmbulance && cameraRef.current && controlsRef.current) {
           const ambP = ambGroupRef.current.position;
           controlsRef.current.target.lerp(new THREE.Vector3(ambP.x, 1.2, ambP.z + 18), 0.12);
@@ -737,7 +717,7 @@ export function SimulationViewport3D({
         }
       }
 
-      // Smooth Lerp for Traffic Vehicles (CAR-01 to CAR-04)
+      // Smooth Lerp for Traffic Vehicles
       vehicleMeshesRef.current.forEach((mesh, id) => {
         const targetState = vehicleTargetsRef.current.get(id);
         if (!targetState) return;
@@ -791,7 +771,7 @@ export function SimulationViewport3D({
     };
   }, []);
 
-  // Update Dynamic 3D Targets on Telemetry Change
+  // Update Dynamic 3D Targets & Signal States on Telemetry Change
   useEffect(() => {
     const amb = telemetry?.ambulance;
     const isRunning = telemetry?.simulation.running ?? false;
@@ -813,104 +793,98 @@ export function SimulationViewport3D({
       ambStrobeBlueMatRef.current.color.setHex(flashBlue ? 0x0066ff : 0x001133);
     }
 
-    const updateSignalState = (
-      sigId: 'SIG-01' | 'SIG-03',
-      redMat: THREE.MeshStandardMaterial | null,
-      yellowMat: THREE.MeshStandardMaterial | null,
-      greenMat: THREE.MeshStandardMaterial | null,
-      light: THREE.PointLight | null,
-      priorityPlane: THREE.Mesh | null
-    ) => {
-      const sig = telemetry?.signals.find(
-        (s) => s.id === sigId || (sigId === 'SIG-03' && (s.id === 'SIG-02' || s.id === 'SIG-03'))
-      );
+    // Update Visual State for All 4 Traffic Signals (SIG-01, SIG-02, SIG-03, SIG-04)
+    SIGNAL_CONFIGS.forEach((sigCfg) => {
+      const refs = signalsMapRef.current.get(sigCfg.id);
+      if (!refs) return;
+
+      const sig = telemetry?.signals.find((s) => s.id === sigCfg.id);
       const state = sig?.emergencyState ?? 'NORMAL';
 
-      if (!redMat || !yellowMat || !greenMat || !light || !priorityPlane) return;
-
       if (state === 'EMERGENCY PRIORITY' || (state as string) === 'PRIORITY') {
-        redMat.color.setHex(0x330000);
-        redMat.emissive.setHex(0x000000);
-        redMat.emissiveIntensity = 0;
+        refs.redBulb.color.setHex(0x330000);
+        refs.redBulb.emissive.setHex(0x000000);
+        refs.redBulb.emissiveIntensity = 0;
 
-        yellowMat.color.setHex(0x332200);
-        yellowMat.emissive.setHex(0x000000);
-        yellowMat.emissiveIntensity = 0;
+        refs.yellowBulb.color.setHex(0x332200);
+        refs.yellowBulb.emissive.setHex(0x000000);
+        refs.yellowBulb.emissiveIntensity = 0;
 
-        greenMat.color.setHex(0x4edea3);
-        greenMat.emissive.setHex(0x4edea3);
-        greenMat.emissiveIntensity = 2.0;
+        refs.greenBulb.color.setHex(0x4edea3);
+        refs.greenBulb.emissive.setHex(0x4edea3);
+        refs.greenBulb.emissiveIntensity = 2.0;
 
-        light.color.setHex(0x4edea3);
-        light.intensity = 8;
+        refs.light.color.setHex(0x4edea3);
+        refs.light.intensity = 8;
 
-        priorityPlane.visible = true;
-        (priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.35;
+        refs.priorityPlane.visible = true;
+        (refs.priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.35;
       } else if (state === 'PREPARING') {
-        redMat.color.setHex(0x330000);
-        redMat.emissive.setHex(0x000000);
-        redMat.emissiveIntensity = 0;
+        refs.redBulb.color.setHex(0x330000);
+        refs.redBulb.emissive.setHex(0x000000);
+        refs.redBulb.emissiveIntensity = 0;
 
-        yellowMat.color.setHex(0xffb95f);
-        yellowMat.emissive.setHex(0xffb95f);
-        yellowMat.emissiveIntensity = 1.8;
+        refs.yellowBulb.color.setHex(0xffb95f);
+        refs.yellowBulb.emissive.setHex(0xffb95f);
+        refs.yellowBulb.emissiveIntensity = 1.8;
 
-        greenMat.color.setHex(0x003311);
-        greenMat.emissive.setHex(0x000000);
-        greenMat.emissiveIntensity = 0;
+        refs.greenBulb.color.setHex(0x003311);
+        refs.greenBulb.emissive.setHex(0x000000);
+        refs.greenBulb.emissiveIntensity = 0;
 
-        light.color.setHex(0xffb95f);
-        light.intensity = 5;
+        refs.light.color.setHex(0xffb95f);
+        refs.light.intensity = 5;
 
-        priorityPlane.visible = true;
-        (priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.18;
+        refs.priorityPlane.visible = true;
+        (refs.priorityPlane.material as THREE.MeshBasicMaterial).opacity = 0.18;
       } else if (state === 'RESTORED' || (state as string) === 'RESTORING') {
-        redMat.color.setHex(0x330000);
-        redMat.emissive.setHex(0x000000);
-        redMat.emissiveIntensity = 0;
+        refs.redBulb.color.setHex(0x330000);
+        refs.redBulb.emissive.setHex(0x000000);
+        refs.redBulb.emissiveIntensity = 0;
 
-        yellowMat.color.setHex(0x38bdf8);
-        yellowMat.emissive.setHex(0x38bdf8);
-        yellowMat.emissiveIntensity = 1.2;
+        refs.yellowBulb.color.setHex(0x38bdf8);
+        refs.yellowBulb.emissive.setHex(0x38bdf8);
+        refs.yellowBulb.emissiveIntensity = 1.2;
 
-        greenMat.color.setHex(0x003311);
-        greenMat.emissive.setHex(0x000000);
-        greenMat.emissiveIntensity = 0;
+        refs.greenBulb.color.setHex(0x003311);
+        refs.greenBulb.emissive.setHex(0x000000);
+        refs.greenBulb.emissiveIntensity = 0;
 
-        light.color.setHex(0x38bdf8);
-        light.intensity = 3;
+        refs.light.color.setHex(0x38bdf8);
+        refs.light.intensity = 3;
 
-        priorityPlane.visible = false;
+        refs.priorityPlane.visible = false;
       } else {
-        redMat.color.setHex(0xff5451);
-        redMat.emissive.setHex(0xff5451);
-        redMat.emissiveIntensity = 0.9;
+        refs.redBulb.color.setHex(0xff5451);
+        refs.redBulb.emissive.setHex(0xff5451);
+        refs.redBulb.emissiveIntensity = 0.9;
 
-        yellowMat.color.setHex(0x332200);
-        yellowMat.emissive.setHex(0x000000);
-        yellowMat.emissiveIntensity = 0;
+        refs.yellowBulb.color.setHex(0x332200);
+        refs.yellowBulb.emissive.setHex(0x000000);
+        refs.yellowBulb.emissiveIntensity = 0;
 
-        greenMat.color.setHex(0x003311);
-        greenMat.emissive.setHex(0x000000);
-        greenMat.emissiveIntensity = 0;
+        refs.greenBulb.color.setHex(0x003311);
+        refs.greenBulb.emissive.setHex(0x000000);
+        refs.greenBulb.emissiveIntensity = 0;
 
-        light.intensity = 0;
-        priorityPlane.visible = false;
+        refs.light.intensity = 0;
+        refs.priorityPlane.visible = false;
       }
-    };
+    });
 
-    updateSignalState('SIG-01', sig01RedBulbRef.current, sig01YellowBulbRef.current, sig01GreenBulbRef.current, sig01LightRef.current, sig01PriorityPlaneRef.current);
-    updateSignalState('SIG-03', sig02RedBulbRef.current, sig02YellowBulbRef.current, sig02GreenBulbRef.current, sig02LightRef.current, sig02PriorityPlaneRef.current);
-
+    // Dynamic Emergency Corridor Ribbons (Stretches across active sequence)
     if (corridorActiveRibbonRef.current && corridorFutureRibbonRef.current) {
       const isActiveMission = isRunning && amb?.status !== 'STAGED' && amb?.status !== 'ARRIVED';
-      
+
       if (isActiveMission && amb) {
         const ambP = mapSumoTo3D(amb.x, amb.y);
         const nextSigId = amb.nextSignal ?? 'SIG-01';
-        let targetZ = -40;
-        if (nextSigId === 'SIG-03' || nextSigId === 'SIG-02') targetZ = 40;
-        else if (nextSigId === 'HOSPITAL' || ambP.z > 30) targetZ = 120;
+
+        let targetZ = -64;
+        if (nextSigId === 'SIG-02') targetZ = -16;
+        else if (nextSigId === 'SIG-03') targetZ = 32;
+        else if (nextSigId === 'SIG-04') targetZ = 80;
+        else if (nextSigId === 'HOSPITAL' || ambP.z > 70) targetZ = 120;
 
         const activeLen = Math.max(1, targetZ - ambP.z);
         const activeCenterZ = ambP.z + activeLen / 2;
@@ -937,7 +911,7 @@ export function SimulationViewport3D({
       }
     }
 
-    // Render Normal Traffic Vehicles (CAR-01 to CAR-04, Scaled to length 6.0)
+    // Render Normal Traffic Vehicles (CAR-01 to CAR-04)
     if (vehiclesGroupRef.current) {
       const currentIds = new Set<string>();
 
@@ -1025,7 +999,7 @@ export function SimulationViewport3D({
       });
     }
 
-    // Update Floating HUD Overlay Badges (Ambulance, Traffic, Junctions, Hospital)
+    // Update Floating HUD Overlay Badges (Ambulance, 4 Junctions, Hospital, Traffic)
     if (cameraRef.current && containerRef.current) {
       const labels: Array<{
         id: string;
@@ -1056,36 +1030,26 @@ export function SimulationViewport3D({
         });
       }
 
-      // 2. Junction SIG-01 (North Gate)
-      const sig01 = telemetry?.signals.find((s) => s.id === 'SIG-01');
-      const sig01State = sig01?.emergencyState ?? 'NORMAL';
-      tempVec.set(-14.0, 16.5, -40);
-      tempVec.project(cameraRef.current);
-      labels.push({
-        id: 'SIG-01-HUD',
-        label: `SIG-01 • North Gate [${sig01State}]`,
-        x: ((tempVec.x + 1) * rect.width) / 2,
-        y: ((-tempVec.y + 1) * rect.height) / 2,
-        category: 'junction',
-        status: sig01State,
+      // 2. All 4 Junctions (SIG-01, SIG-02, SIG-03, SIG-04)
+      SIGNAL_CONFIGS.forEach((sigCfg) => {
+        const sig = telemetry?.signals.find((s) => s.id === sigCfg.id);
+        const sigState = sig?.emergencyState ?? 'NORMAL';
+
+        tempVec.set(-14.0, 16.5, sigCfg.worldZ);
+        tempVec.project(cameraRef.current!);
+
+        labels.push({
+          id: `${sigCfg.id}-HUD`,
+          label: `${sigCfg.id} • ${sigCfg.name} [${sigState}]`,
+          x: ((tempVec.x + 1) * rect.width) / 2,
+          y: ((-tempVec.y + 1) * rect.height) / 2,
+          category: 'junction',
+          status: sigState,
+        });
       });
 
-      // 3. Junction SIG-03 (Central Junction)
-      const sig03 = telemetry?.signals.find((s) => s.id === 'SIG-03' || s.id === 'SIG-02');
-      const sig03State = sig03?.emergencyState ?? 'NORMAL';
-      tempVec.set(-14.0, 16.5, 40);
-      tempVec.project(cameraRef.current);
-      labels.push({
-        id: 'SIG-03-HUD',
-        label: `SIG-03 • Central Junction [${sig03State}]`,
-        x: ((tempVec.x + 1) * rect.width) / 2,
-        y: ((-tempVec.y + 1) * rect.height) / 2,
-        category: 'junction',
-        status: sig03State,
-      });
-
-      // 4. Destination Hospital Landmark Badge
-      tempVec.set(48, 20.0, 115);
+      // 3. Destination Hospital Landmark Badge
+      tempVec.set(48, 20.0, 120);
       tempVec.project(cameraRef.current);
       labels.push({
         id: 'HOSPITAL-HUD',
@@ -1095,7 +1059,7 @@ export function SimulationViewport3D({
         category: 'hospital',
       });
 
-      // 5. Normal Traffic Vehicle Badges
+      // 4. Normal Traffic Vehicle Badges
       vehicleMeshesRef.current.forEach((group, id) => {
         const targetState = vehicleTargetsRef.current.get(id);
         const isBraking = targetState ? targetState.speedKmh < 5 : false;
@@ -1129,7 +1093,7 @@ export function SimulationViewport3D({
       {/* Floating 3D HUD Badges Overlay */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {hudLabels.map((item) => {
-          if (item.x < -100 || item.x > 1400 || item.y < -50 || item.y > 900) return null;
+          if (item.x < -100 || item.x > 1600 || item.y < -50 || item.y > 1000) return null;
 
           let badgeStyle = 'bg-[#060e20]/85 text-[#dae2fd] border-[#334155]';
           if (item.category === 'ambulance') {
