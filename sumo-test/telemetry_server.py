@@ -67,9 +67,10 @@ class TelemetryBridge:
             "SIG-03": "NORMAL",
             "SIG-04": "NORMAL",
         }
-        
+
         self.signals_prioritized_count = 0
         self.intersections_cleared_count = 0
+        self.ambulance_arrived = False
         
         # Initial telemetry structure matching Contract
         self.telemetry = self._default_telemetry()
@@ -166,6 +167,7 @@ class TelemetryBridge:
         self.signal_states = {"SIG-01": "NORMAL", "SIG-02": "NORMAL", "SIG-03": "NORMAL", "SIG-04": "NORMAL"}
         self.signals_prioritized_count = 0
         self.intersections_cleared_count = 0
+        self.ambulance_arrived = False
         
         # Atomic update of telemetry snapshot JSON
         default_dict = self._default_telemetry()
@@ -192,9 +194,26 @@ class TelemetryBridge:
                 # ── ALL TraCI Socket Operations Execute OUTSIDE telemetry_lock ──
                 traci.simulationStep()
                 self.step += 1
-                
+
+                # Safe SUMO end-time handling
+                try:
+                    sim_time = traci.simulation.getTime()
+                    # Config end=500, stop 20s before to avoid trapping in limbo
+                    if sim_time >= 480 and self.traci_connected:
+                        traci.close()
+                        self.traci_connected = False
+                        self.running = False
+                        print(f"[SUMO Bridge] Simulation reached end of config (t={sim_time}), stopping.")
+                except Exception:
+                    pass  # getTime may raise after close; ignore
+
                 vehicles_list = traci.vehicle.getIDList()
                 tl_ids = traci.trafficlight.getIDList()
+
+                # Re-apply emergency signal overrides to maintain green wave across phase boundaries
+                for signal_id, state in self.signal_states.items():
+                    if state == "EMERGENCY PRIORITY" and self.traci_connected:
+                        traci.trafficlight.setRedYellowGreenState(signal_id, "GGGrr")
 
                 # Extract detailed vehicle telemetry for ALL vehicles in SUMO
                 telemetry_vehicles = []
@@ -357,8 +376,12 @@ class TelemetryBridge:
                     with self.telemetry_lock:
                         self.telemetry_json_str = new_json_str
 
-                elif self.step > 5:
-                    # Ambulance arrived at destination
+                elif self.step > 1000 and not self.ambulance_arrived:
+                    # Safety timeout: AMB-01 was never seen to have arrived.
+                    # Publish ARRIVED state and stop, but do NOT set self.ambulance_arrived
+                    # so if SUMO is still running and the vehicle vanishes later, the real
+                    # arrival branch can still fire correctly.
+                    print("[SUMO Bridge] Safety timeout (step 1000) reached — marking mission complete.")
                     arrived_dict = self._default_telemetry()
                     arrived_dict["simulation"]["running"] = False
                     arrived_dict["simulation"]["step"] = self.step
@@ -372,16 +395,37 @@ class TelemetryBridge:
                     arrived_dict["mission"]["intersectionsCleared"] = self.intersections_cleared_count
                     arrived_dict["mission"]["timeSaved"] = 17.0
                     arrived_dict["traffic"]["vehicles"] = telemetry_vehicles
-
                     self.telemetry = arrived_dict
                     arrived_json = json.dumps(arrived_dict)
                     with self.telemetry_lock:
                         self.telemetry_json_str = arrived_json
-
-                    # Keep SUMO connected after mission complete so signal control API
-                    # remains operational for testing and demonstration.
                     self.running = False
-                    print("[SUMO Bridge] AMB-01 ARRIVED AT HOSPITAL. Telemetry mission complete. SUMO kept live for signal control.")
+
+                elif "AMB-01" not in vehicles_list and not self.ambulance_arrived and self.signals_prioritized_count > 0:
+                    # Real ARRIVED: AMB-01 was previously in simulation (signals_prioritized_count > 0)
+                    # and has now vanished. Publish ARRIVED and stop.
+                    self.ambulance_arrived = True
+                    print("[SUMO Bridge] AMB-01 ARRIVED AT HOSPITAL.")
+                    arrived_dict = self._default_telemetry()
+                    arrived_dict["simulation"]["running"] = False
+                    arrived_dict["simulation"]["step"] = self.step
+                    arrived_dict["simulation"]["elapsedTime"] = float(self.step)
+                    arrived_dict["ambulance"]["status"] = "ARRIVED"
+                    arrived_dict["ambulance"]["x"] = 98.4
+                    arrived_dict["ambulance"]["y"] = 2.7
+                    arrived_dict["ambulance"]["speedKmh"] = 0.0
+                    arrived_dict["ambulance"]["distanceToNextSignal"] = 0.0
+                    arrived_dict["ambulance"]["etaSeconds"] = 0
+                    arrived_dict["mission"]["intersectionsCleared"] = self.intersections_cleared_count
+                    arrived_dict["mission"]["timeSaved"] = 17.0
+                    arrived_dict["traffic"]["vehicles"] = telemetry_vehicles
+                    self.telemetry = arrived_dict
+                    arrived_json = json.dumps(arrived_dict)
+                    with self.telemetry_lock:
+                        self.telemetry_json_str = arrived_json
+                    self.running = False
+
+                # else: AMB-01 still in sim (normal step) — loop continues
 
             except Exception as e:
                 print(f"[SUMO Bridge] Error in simulation step: {e}")

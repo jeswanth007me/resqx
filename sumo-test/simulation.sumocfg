@@ -7,6 +7,13 @@
     <time>
         <begin value="0"/>
         <end value="500"/>
-        <step-length value="1.0"/>
+        <step-length value="0.5"/>
     </time>
+    <processing>
+        <no-step-log value="true"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+    <random_number>
+        <seed value="42"/>
+    </random_number>
 </configuration>

@@ -5,9 +5,11 @@
     <vType id="emergency" vClass="emergency" accel="3.5" decel="4.5" sigma="0.0" length="5.5" maxSpeed="20.0" color="255,0,0" guiShape="emergency"/>
 
     <!-- Routes -->
-    <route id="route_corridor" edges="E_CORRIDOR_1 E_CORRIDOR_2 E_CORRIDOR_3"/>
+    <route id="route_corridor" edges="E_CORRIDOR_1 E_CORRIDOR_2 E_CORRIDOR_3 E_CORRIDOR_4 E_CORRIDOR_5"/>
     <route id="route_cross1" edges="E_CROSS1_IN E_CROSS1_OUT"/>
     <route id="route_cross2" edges="E_CROSS2_IN E_CROSS2_OUT"/>
+    <route id="route_cross3" edges="E_CROSS3_IN E_CROSS3_OUT"/>
+    <route id="route_cross4" edges="E_CROSS4_IN E_CROSS4_OUT"/>
 
     <!-- Vehicles -->
     <vehicle id="CAR-01" type="car" route="route_corridor" depart="0"/>

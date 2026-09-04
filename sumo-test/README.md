@@ -42,12 +42,15 @@ For each signal node (`SIG-01` and `SIG-02`), the algorithm manages a 4-stage st
 
 | File | Purpose |
 | :--- | :--- |
-| `nodes.nod.xml` | Defines 3D spatial node coordinates for start point, intersections `SIG-01` & `SIG-02`, cross roads, and destination hospital |
+| `nodes.nod.xml` | Defines 3D spatial node coordinates for start point, intersections `SIG-01`..`SIG-04`, cross roads, and destination hospital |
 | `edges.edg.xml` | Defines road links, number of lanes, speed limits, and priorities |
 | `network.net.xml` | Compiled SUMO network binary generated via `netconvert` |
 | `routes.rou.xml` | Defines vehicle classes (`car` vs `emergency`), routes, vehicle departures, and `AMB-01` specs |
 | `simulation.sumocfg` | Master SUMO configuration file linking network and route files |
-| `test_traci.py` | Python TraCI client implementing real-time emergency signal priority override & restoration |
+| `telemetry_server.py` | HTTP bridge (port 8000) that owns the TraCI connection and exposes `/api/telemetry`, `/api/control`, `/api/signal`, `/api/alert` |
+| `test_signal_control.py` | Automated 4-signal verification: HTTP → bridge → TraCI → SUMO → telemetry loop |
+| `test_traci.py` | Standalone TraCI spike (2-signal demo, kept for reference) |
+| `validate_phase2.ps1` | Single-command Phase 2 validation script |
 | `README.md` | Documentation for the integration spike |
 
 ---
