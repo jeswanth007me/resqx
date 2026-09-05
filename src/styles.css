@@ -1,84 +1,90 @@
 /* ─── Google Fonts (Must precede all other statements) ───────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400..600,0..1,0&display=swap');
 
 @import "tailwindcss";
 
-/* ─── Stitch EOCC Design Tokens ──────────────────────────────────── */
+/* ─── ResQX EOC Design Tokens (Stitch Dark Operations Command) ───────────── */
 @theme {
-  /* Surface Hierarchy */
-  --color-background: #0B1326;
-  --color-surface: #0B1326;
-  --color-surface-dim: #0B1326;
-  --color-surface-bright: #31394D;
-  --color-surface-container-lowest: #060E20;
-  --color-surface-container-low: #131B2E;
-  --color-surface-container: #171F33;
-  --color-surface-container-high: #222A3D;
-  --color-surface-container-highest: #2D3449;
-  --color-surface-variant: #2D3449;
-  --color-surface-tint: #FFB3AD;
+  /* Surface Hierarchy (Deep Dark Charcoal EOC surfaces) */
+  --color-background: #111111;
+  --color-surface: #171717;
+  --color-surface-dim: #131313;
+  --color-surface-bright: #2a2a2a;
+  --color-surface-container-lowest: #0e0e0e;
+  --color-surface-container-low: #141414;
+  --color-surface-container: #1a1a1a;
+  --color-surface-container-high: #202020;
+  --color-surface-container-highest: #262626;
+  --color-surface-variant: #262626;
+  --color-surface-border: #2a2a2a;
+  --color-surface-border-subtle: #1e1e1e;
+  --color-surface-tint: #d04848;
 
-  /* Primary (Emergency Red family) */
-  --color-primary: #FFB3AD;
-  --color-primary-container: #FF5451;
-  --color-on-primary: #68000A;
-  --color-on-primary-container: #5C0008;
-  --color-primary-fixed: #FFDAD7;
-  --color-primary-fixed-dim: #FFB3AD;
-  --color-on-primary-fixed: #410004;
-  --color-on-primary-fixed-variant: #930013;
-  --color-inverse-primary: #B91A24;
+  /* Primary (Emergency Red — Mission Critical) */
+  --color-primary: #d04848;
+  --color-primary-container: #410005;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffdad7;
+  --color-primary-fixed: #ffdad7;
+  --color-primary-fixed-dim: #ffb3af;
+  --color-on-primary-fixed: #410005;
+  --color-on-primary-fixed-variant: #8c151d;
+  --color-inverse-primary: #ae2f32;
 
-  /* Secondary (Success Green family) */
-  --color-secondary: #4EDEA3;
-  --color-secondary-container: #00A572;
-  --color-on-secondary: #003824;
-  --color-on-secondary-container: #00311F;
-  --color-secondary-fixed: #6FFBBE;
-  --color-secondary-fixed-dim: #4EDEA3;
-  --color-on-secondary-fixed: #002113;
-  --color-on-secondary-fixed-variant: #005236;
+  /* Secondary (Green Wave Active / Safety Approved / Clear) */
+  --color-secondary: #38a169;
+  --color-secondary-container: #00390e;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #8bfb91;
+  --color-secondary-fixed: #8bfb91;
+  --color-secondary-fixed-dim: #6fdd78;
+  --color-on-secondary-fixed: #002106;
+  --color-on-secondary-fixed-variant: #005319;
 
-  /* Tertiary (Warning Amber family) */
-  --color-tertiary: #FFB95F;
-  --color-tertiary-container: #CA8100;
-  --color-on-tertiary: #472A00;
-  --color-on-tertiary-container: #3E2400;
-  --color-tertiary-fixed: #FFDDB8;
-  --color-tertiary-fixed-dim: #FFB95F;
-  --color-on-tertiary-fixed: #2A1700;
-  --color-on-tertiary-fixed-variant: #653E00;
+  /* Tertiary (Warning / Yellow Clearance / Preparing Phase) */
+  --color-tertiary: #d97706;
+  --color-tertiary-container: #432100;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #ffdcc3;
+  --color-tertiary-fixed: #ffdcc3;
+  --color-tertiary-fixed-dim: #ffb77d;
+  --color-on-tertiary-fixed: #2f1500;
+  --color-on-tertiary-fixed-variant: #6e3900;
 
   /* Error */
-  --color-error: #FFB4AB;
-  --color-error-container: #93000A;
-  --color-on-error: #690005;
-  --color-on-error-container: #FFDAD6;
+  --color-error: #d04848;
+  --color-error-container: #410005;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #ffdad6;
 
-  /* Text */
-  --color-on-surface: #DAE2FD;
-  --color-on-surface-variant: #E4BEBA;
-  --color-on-background: #DAE2FD;
+  /* Text & Typography */
+  --color-on-surface: #F5F5F5;
+  --color-on-surface-variant: #A3A3A3;
+  --color-on-surface-muted: #737373;
+  --color-on-background: #F5F5F5;
 
-  /* Borders */
-  --color-outline: #AB8986;
-  --color-outline-variant: #5B403E;
+  /* Crisp 1px Structural Borders */
+  --color-outline: #333333;
+  --color-outline-variant: #242424;
+  --color-outline-dim: #555555;
 
   /* Inverse */
-  --color-inverse-surface: #DAE2FD;
-  --color-inverse-on-surface: #283044;
+  --color-inverse-surface: #e5e2e1;
+  --color-inverse-on-surface: #111111;
 
   /* Typography — Font Families */
-  --font-headline: 'Inter', system-ui, sans-serif;
+  --font-headline: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-data: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Spacing */
   --spacing-unit: 4px;
-  --spacing-gutter: 16px;
-  --spacing-margin: 24px;
-  --spacing-panel: 20px;
+  --spacing-gutter: 12px;
+  --spacing-margin: 16px;
+  --spacing-panel: 16px;
 }
 
 /* ─── Base Resets ─────────────────────────────────────────────────── */
@@ -89,8 +95,8 @@
     background-color: var(--color-background);
     color: var(--color-on-surface);
     font-family: var(--font-body);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 18px;
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -101,6 +107,7 @@
   body {
     overscroll-behavior: none;
     overflow-x: hidden;
+    background-color: #111111;
   }
 
   *, *::before, *::after {
@@ -115,154 +122,45 @@
   /* Custom thin scrollbars for panels that need them */
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
+    height: 4px;
     display: block;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-surface-variant);
-    border-radius: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--color-outline-variant);
+    background: #383838;
   }
 }
 
-/* ─── Glass Panel Utilities ──────────────────────────────────────── */
+/* ─── Mission Control Glass & Utility Classes ──────────────────── */
 @layer utilities {
   .glass-panel {
-    background: rgba(23, 31, 51, 0.6);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(218, 226, 253, 0.1);
+    background: #111111;
+    border-bottom: 1px solid #242424;
   }
 
   .control-bar {
-    background: rgba(19, 27, 46, 0.8);
-    backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(218, 226, 253, 0.1);
+    background: #141414;
+    border-top: 1px solid #242424;
   }
 }
 
 /* ─── Material Symbols ───────────────────────────────────────────── */
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
-/* ─── Keyframe Animations ────────────────────────────────────────── */
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
+/* ─── Animations ─────────────────────────────────────────────────── */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
-/* ─── City Map SVG Visualizations ────────────────────────────────── */
-.city-map {
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-}
-
-.city-map .block-grid rect {
-  fill: var(--color-surface-container);
-  stroke: rgba(49, 57, 77, 0.4);
-  stroke-width: 1.5;
-}
-
-.city-map .roads path {
-  fill: none;
-  stroke: var(--color-surface-bright);
-  stroke-width: 12;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.city-map .route-line {
-  fill: none;
-  stroke: rgba(255, 179, 173, 0.45);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 6 4;
-}
-
-.city-map .signal circle:first-child {
-  fill: var(--color-surface-container-high);
-  stroke: var(--color-outline-variant);
-  stroke-width: 1.5;
-}
-
-.city-map .signal text {
-  font-family: var(--font-data);
-  font-size: 10px;
-  font-weight: 600;
-  fill: var(--color-on-surface-variant);
-  text-anchor: middle;
-}
-
-.city-map .signal-light.green {
-  fill: var(--color-secondary);
-  filter: drop-shadow(0 0 6px var(--color-secondary));
-}
-
-.city-map .signal-light.red {
-  fill: var(--color-primary-container);
-  filter: drop-shadow(0 0 6px var(--color-primary-container));
-}
-
-.city-map .signal-light.normal {
-  fill: var(--color-on-surface-variant);
-}
-
-.city-map .signal-light.emergency_priority {
-  fill: var(--color-secondary);
-  filter: drop-shadow(0 0 8px var(--color-secondary));
-  animation: pulse-priority 0.8s infinite alternate ease-in-out;
-}
-
-.city-map .vehicle {
-  stroke: var(--color-surface-container-lowest);
-  stroke-width: 1;
-}
-
-.city-map .ambulance rect {
-  fill: var(--color-primary-container);
-  stroke: #ffffff;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 4px var(--color-primary-container));
-}
-
-.city-map .ambulance path {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 1.5;
-}
-
-.city-map .ambulance circle {
-  fill: #000000;
-}
-
-.city-map .hospital rect {
-  fill: var(--color-secondary-container);
-  stroke: var(--color-secondary);
-  stroke-width: 1.5;
-}
-
-.city-map .hospital path {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 2;
-}
-
-.city-map .hospital text {
-  font-family: var(--font-headline);
-  font-size: 10px;
-  font-weight: 700;
-  fill: var(--color-secondary);
-  text-anchor: middle;
-}
-
-@keyframes pulse-priority {
-  0% { opacity: 0.6; r: 3.5px; }
-  100% { opacity: 1; r: 6.5px; }
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

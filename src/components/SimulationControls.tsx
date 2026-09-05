@@ -22,74 +22,66 @@ export function SimulationControls({
   const { t } = useLocale();
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 h-20 z-50 control-bar flex items-center justify-between px-[var(--spacing-margin)]">
-      {/* Scenario Selection */}
-      <div className="flex items-center gap-[var(--spacing-margin)]">
+    <footer className="w-full bg-[#111111] border-t border-[#242424] px-4 py-2.5 flex items-center justify-between z-40 select-none">
+      {/* Scenario Indicator */}
+      <div className="flex items-center gap-3">
         <div className="flex flex-col">
-          <label className="font-data text-[10px] font-semibold text-on-surface-variant uppercase mb-1">
-            {t.simulation.scenarioSelection}
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 bg-primary/20 text-primary border border-primary/40 font-body text-sm rounded-lg hover:bg-primary/30 transition-all cursor-pointer font-semibold"
-            >
-              Corridor Emergency
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 bg-surface-container-highest text-on-surface-variant font-body text-sm rounded-lg opacity-50 border-none cursor-not-allowed"
-              title="Secondary scenario available in advanced mode"
-            >
-              High-Rise Fire
-            </button>
+          <span className="font-mono text-[9px] font-bold text-[#737373] uppercase tracking-wider">
+            ACTIVE SCENARIO
+          </span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="px-2.5 py-1 bg-[#171717] border border-[#2a2a2a] text-[#F5F5F5] font-mono text-[11px] font-bold rounded">
+              Route 4A Corridor Emergency
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Playback Controls & Speed */}
+      {/* Playback & Speed Controls */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center bg-surface-container-lowest rounded-full p-1 gap-1 border border-outline-variant/30">
+        {/* Play / Pause & Reset */}
+        <div className="flex items-center bg-[#171717] rounded p-1 gap-1 border border-[#242424]">
           <button
             type="button"
             onClick={isRunning ? onPause : onStart}
-            className={`p-3 rounded-full transition-all flex items-center justify-center border-none cursor-pointer ${
+            className={`px-3 py-1 rounded font-mono text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               isRunning
-                ? 'text-secondary bg-secondary/10 hover:bg-secondary/20'
-                : 'text-primary hover:bg-primary/10'
+                ? 'bg-[#38a169]/15 text-[#38a169] border border-[#38a169]/30'
+                : 'bg-[#d04848] text-white hover:bg-[#e15252] border border-[#e15252]'
             }`}
-            aria-label={isRunning ? t.controls.pause : t.controls.play}
             title={isRunning ? 'Pause Simulation' : 'Start Simulation'}
           >
-            <span className="material-symbols-outlined">
+            <span className="material-symbols-outlined text-[14px]">
               {isRunning ? 'pause' : 'play_arrow'}
             </span>
+            {isRunning ? 'PAUSE' : 'RUN'}
           </button>
+
           <button
             type="button"
             onClick={onReset}
-            className="p-3 rounded-full transition-all flex items-center justify-center border-none bg-transparent text-on-surface-variant hover:bg-surface-variant cursor-pointer"
-            aria-label={t.controls.reset}
-            title="Reset Simulation to Initial Staged State"
+            className="p-1 px-2 rounded font-mono text-[11px] text-[#737373] hover:text-[#F5F5F5] hover:bg-[#222222] transition-colors cursor-pointer flex items-center gap-1 border border-transparent"
+            title="Reset Simulation to Initial State"
           >
-            <span className="material-symbols-outlined">replay</span>
+            <span className="material-symbols-outlined text-[14px]">replay</span>
+            RESET
           </button>
         </div>
 
-        {/* Speed Controls */}
-        <div className="flex items-center gap-2">
-          <span className="font-data text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
-            {t.simulation.simulationSpeed}
+        {/* Speed Multiplier Toggles */}
+        <div className="flex items-center gap-1.5 bg-[#171717] p-1 rounded border border-[#242424]">
+          <span className="font-mono text-[9px] text-[#737373] uppercase px-1 font-bold">
+            SPEED:
           </span>
           {([1, 2, 5] as const).map((s) => (
             <button
               type="button"
               key={s}
               onClick={() => onSpeedChange(s)}
-              className={`px-3 py-1.5 rounded-lg font-data text-xs font-semibold transition-all border-none cursor-pointer ${
+              className={`px-2 py-0.5 rounded font-mono text-[11px] font-bold transition-colors cursor-pointer ${
                 speed === s
-                  ? 'bg-primary text-on-primary shadow-sm'
-                  : 'bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high'
+                  ? 'bg-[#262626] text-[#F5F5F5] border border-[#383838]'
+                  : 'text-[#737373] hover:text-[#F5F5F5] border border-transparent'
               }`}
             >
               {s}x
@@ -97,24 +89,24 @@ export function SimulationControls({
           ))}
         </div>
 
-        {/* Operational Status Tag */}
-        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container border border-outline-variant/30">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-secondary animate-pulse' : 'bg-tertiary'}`} />
-          <span className="text-[10px] font-data font-bold uppercase text-on-surface-variant">
-            {isConnected ? 'SUMO LIVE' : 'LOCAL FALLBACK'}
+        {/* SUMO Live Status Indicator */}
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded bg-[#171717] border border-[#242424] font-mono text-[10px]">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#38a169] animate-pulse' : 'bg-[#d97706]'}`} />
+          <span className="text-[#A3A3A3] font-medium">
+            {isConnected ? 'TraCI REALTIME FEED' : 'STANDBY MODE'}
           </span>
         </div>
       </div>
 
-      {/* Start Emergency Button */}
-      <div className="flex items-center gap-[var(--spacing-gutter)]">
+      {/* Emergency Priority Trigger Button */}
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onStart}
-          className="flex items-center gap-2 px-6 py-3 font-headline font-semibold text-sm rounded-xl transition-all uppercase tracking-wider border-none shadow-lg bg-error text-on-error hover:brightness-110 active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 font-mono font-bold text-[11px] rounded transition-all uppercase tracking-wider shadow-sm bg-[#d04848] text-white hover:bg-[#e15252] border border-[#e15252] cursor-pointer"
         >
-          <span className="material-symbols-outlined">warning</span>
-          {t.simulation.startEmergency}
+          <span className="material-symbols-outlined text-[14px]">warning</span>
+          {isRunning ? 'CORRIDOR ACTIVE' : t.simulation.startEmergency}
         </button>
       </div>
     </footer>

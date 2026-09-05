@@ -32,6 +32,7 @@ const testSignals: SignalInput[] = [
   { id: 'SIG-01', name: 'North Gate', road: 'ROAD-01', position: { x: 300, y: 150 } },
   { id: 'SIG-02', name: 'Central Avenue', road: 'ROAD-02', position: { x: 300, y: 275 } },
   { id: 'SIG-03', name: 'Hospital Approach', road: 'ROAD-03', position: { x: 300, y: 400 } },
+  { id: 'SIG-04', name: 'South Corridor', road: 'ROAD-03', position: { x: 300, y: 525 } },
 ];
 
 // ── TEST 1: Constant Ambulance Speed ─────────────────────────────────
@@ -236,7 +237,7 @@ console.log('TEST 7: Per-junction arrival prediction for Corridor Planner');
     );
   }
 
-  assert(eta.junctionArrivals.length >= 2, 'TEST 7: Must predict arrival for signals along route');
+  assert(eta.junctionArrivals.length >= 3, 'TEST 7: Must predict arrival for signals along route');
   assert(
     eta.junctionArrivals[0].signalId === 'SIG-01',
     'TEST 7: First predicted signal must be SIG-01'
@@ -246,11 +247,19 @@ console.log('TEST 7: Per-junction arrival prediction for Corridor Planner');
     'TEST 7: Second predicted signal must be SIG-03'
   );
   assert(
+    eta.junctionArrivals[2].signalId === 'SIG-04',
+    'TEST 7: Third predicted signal must be SIG-04'
+  );
+  assert(
     eta.junctionArrivals[0].predictedArrivalSeconds < eta.junctionArrivals[1].predictedArrivalSeconds,
     'TEST 7: Signals must be ordered chronologically'
   );
   assert(
-    eta.junctionArrivals[1].predictedArrivalSeconds <= eta.estimatedTravelTime,
+    eta.junctionArrivals[1].predictedArrivalSeconds < eta.junctionArrivals[2].predictedArrivalSeconds,
+    'TEST 7: Signals must be ordered chronologically'
+  );
+  assert(
+    eta.junctionArrivals[2].predictedArrivalSeconds <= eta.estimatedTravelTime,
     'TEST 7: Intermediate signals must arrive before final destination arrival'
   );
   console.log('✅ TEST 7 PASSED: Per-junction arrival times accurately predicted for corridor planning.\n');

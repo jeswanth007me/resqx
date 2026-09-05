@@ -131,7 +131,7 @@ export class LiveAlertService implements AlertService {
   }
 }
 
-let activeAlertService: AlertService = new DemoAlertService();
+let activeAlertService: AlertService = new LiveAlertService('http://localhost:8000');
 
 export function getAlertService(): AlertService {
   return activeAlertService;

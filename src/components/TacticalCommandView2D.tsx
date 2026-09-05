@@ -1,21 +1,19 @@
 /**
- * ResQX 2D Tactical Command-Center View
+ * ResQX 2D Tactical Command-Center Digital Twin
  *
- * Provides a high-contrast, instant-comprehension tactical map for emergency dispatchers.
- * Consumes the single source of truth: RoadGraph, RouteResult, EtaResult, CorridorPlan,
- * Telemetry, Queue Estimator, and Police Coordination.
+ * Professional, dark EOC vector corridor with real-time SUMO/TraCI telemetry:
+ * AMB-01 → SIG-01 → SIG-02 → SIG-03 → SIG-04 → HOSPITAL
  */
 
 import { useState, useMemo } from 'react';
-import type { TelemetryData } from '../types/telemetry.ts';
-import type { ConnectionStatus } from '../telemetry/useResQXTelemetry.ts';
-import { getDefaultCityGraph } from '../routing/graph.ts';
-import { calculateAmbulanceRoute } from '../routing/engine.ts';
-import { calculateAmbulanceEta } from '../routing/eta.ts';
-import { planEmergencyCorridor } from '../routing/corridor.ts';
-import { validateCorridorPlan } from '../safety/validator.ts';
-import { PoliceCoordinator } from '../services/policeCoordinator.ts';
-import { estimateRoadQueues } from '../traffic/queueEstimator.ts';
+import type { TelemetryData } from '../types/telemetry';
+import type { ConnectionStatus } from '../telemetry/useResQXTelemetry';
+import { PoliceCoordinator } from '../services/policeCoordinator';
+import { getDefaultCityGraph } from '../routing/graph';
+import { calculateAmbulanceRoute } from '../routing/engine';
+import { calculateAmbulanceEta } from '../routing/eta';
+import { planEmergencyCorridor } from '../routing/corridor';
+import { validateCorridorPlan } from '../safety/validator';
 
 interface TacticalCommandView2DProps {
   telemetry: TelemetryData | null;
@@ -23,11 +21,18 @@ interface TacticalCommandView2DProps {
   onSelectSignal?: (signalId: string) => void;
 }
 
+const JUNCTIONS = [
+  { id: 'SIG-01', name: '4th & Maple Ave', x: 220, sumoY: 230 },
+  { id: 'SIG-02', name: '6th & Maple Ave', x: 400, sumoY: 170 },
+  { id: 'SIG-03', name: '8th & Maple Ave', x: 580, sumoY: 110 },
+  { id: 'SIG-04', name: 'Hospital Way', x: 760, sumoY: 50 },
+] as const;
+
 export function TacticalCommandView2D({
   telemetry,
   connectionStatus,
 }: TacticalCommandView2DProps) {
-  const [selectedJunctionId, setSelectedJunctionId] = useState<string | null>('SIG-01');
+  const [selectedJunctionId, setSelectedJunctionId] = useState<string>('SIG-02');
   const coordinator = useMemo(() => new PoliceCoordinator(), []);
 
   const isConnected = connectionStatus === 'CONNECTED';
@@ -35,15 +40,8 @@ export function TacticalCommandView2D({
   const isRunning = telemetry?.simulation.running ?? false;
   const isArrived = amb?.status === 'ARRIVED';
 
-  // Compute live single source of truth
-  const {
-    graph,
-    routeResult,
-    etaResult,
-    safetyResult,
-    policeAssignments,
-    queueMetrics,
-  } = useMemo(() => {
+  // Compute live single source of truth for corridor & safety validation
+  const { etaResult, safetyResult, policeAssignments } = useMemo(() => {
     const defaultGraph = getDefaultCityGraph();
     const route = calculateAmbulanceRoute(defaultGraph);
     const eta = calculateAmbulanceEta({
@@ -56,8 +54,9 @@ export function TacticalCommandView2D({
       },
       signals: [
         { id: 'SIG-01', name: 'North Gate', road: 'ROAD-01', position: { x: 300, y: 150 } },
+        { id: 'SIG-02', name: 'Central Intersection', road: 'ROAD-01', position: { x: 300, y: 275 } },
         { id: 'SIG-03', name: 'Hospital Approach', road: 'ROAD-03', position: { x: 300, y: 400 } },
-        { id: 'SIG-02', name: 'Central Intersection', road: 'ROAD-02', position: { x: 300, y: 275 } },
+        { id: 'SIG-04', name: 'South Corridor', road: 'ROAD-03', position: { x: 300, y: 525 } },
       ],
     });
     const corridor = planEmergencyCorridor(eta);
@@ -67,89 +66,80 @@ export function TacticalCommandView2D({
       amb?.id ?? 'AMB-01',
       telemetry?.simulation.elapsedTime ?? 0
     );
-    const queues = estimateRoadQueues(telemetry?.traffic.vehicles ?? []);
 
     return {
-      graph: defaultGraph,
-      routeResult: route,
       etaResult: eta,
-      corridorPlan: corridor,
       safetyResult: safety,
       policeAssignments: assignments,
-      queueMetrics: queues,
     };
-  }, [coordinator, amb?.speedKmh, amb?.currentRoad, amb?.status, amb?.id, telemetry?.simulation.elapsedTime, telemetry?.traffic.vehicles]);
+  }, [coordinator, amb?.speedKmh, amb?.currentRoad, amb?.status, amb?.id, telemetry?.simulation.elapsedTime]);
 
   // Selected junction data for inspector
   const selectedAssignment = policeAssignments.find((a) => a.signalId === selectedJunctionId);
   const selectedSignalState = telemetry?.signals.find((s) => s.id === selectedJunctionId);
 
-  // Coordinate mapping from RoadGraph (X: 50..550 -> SVG 60..540, Y: 30..560 -> SVG 50..430)
-  const mapGraphToSvg = (gx: number, gy: number) => {
-    const svgX = 60 + ((gx - 50) / 500) * 480;
-    const svgY = 40 + ((gy - 30) / 530) * 400;
-    return { x: svgX, y: svgY };
-  };
-
-  // Ambulance position mapping
-  // If telemetry has x, y in SUMO coordinates (100, 300..0)
-  const ambSvgPos = useMemo(() => {
-    if (!amb) return { x: 300, y: 50 };
-    const progress = 1 - Math.max(0, Math.min(300, amb.y)) / 300;
-    const gx = 300;
-    const gy = 40 + progress * 505;
-    return mapGraphToSvg(gx, gy);
+  // Exact SUMO Y -> 2D SVG X progress mapping (corridor length: Start 70 -> Hospital 910)
+  // SUMO Y starts at 300 (North Start) and reaches 0 (Hospital)
+  const ambProgress = useMemo(() => {
+    if (!amb || !Number.isFinite(amb.y)) return 0.05;
+    return Math.max(0, Math.min(1, (300 - amb.y) / 300));
   }, [amb]);
 
+  const ambX = 70 + ambProgress * 840;
+  const ambY = 195;
+
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#0b0f17] text-on-surface rounded-xl overflow-hidden border border-outline-variant/40 shadow-2xl">
-      {/* ── 1. COMMAND-CENTER TACTICAL STATUS BAR ────────────────────── */}
-      <div className="px-4 py-2.5 bg-[#101726]/95 border-b border-outline-variant/30 flex items-center justify-between gap-4 z-10">
+    <div className="relative w-full h-full flex flex-col bg-[#0c0c0c] text-[#F5F5F5] overflow-hidden select-none">
+      {/* ── 1. TACTICAL STATUS BAR (DARK EOC HEADER) ────────────────── */}
+      <div className="h-9 px-4 bg-[#141414] border-b border-[#242424] flex items-center justify-between gap-4 z-20 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" />
-            <span className="font-headline text-xs font-bold text-on-surface tracking-wider uppercase">
-              2D TACTICAL COMMAND CENTER
+            <span className="w-2 h-2 rounded-full bg-[#38a169] animate-pulse" />
+            <span className="font-mono text-[10px] font-bold text-[#F5F5F5] tracking-widest uppercase">
+              2D TACTICAL DIGITAL TWIN
             </span>
           </div>
-          <span className="text-[10px] font-data px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant border border-outline-variant/30">
-            {isConnected ? 'SUMO LIVE' : 'LOCAL SIMULATION'}
+          <div className="h-3 w-px bg-[#262626]" />
+          <span className="text-[10px] font-mono text-[#A3A3A3]">
+            {isConnected ? 'SUMO / TraCI HARD SYNC' : 'STANDBY SIMULATOR'}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-data">
-          <div>
-            <span className="text-on-surface-variant text-[10px] block">EMERGENCY</span>
-            <span className="font-bold text-secondary">
-              {isArrived ? 'COMPLETED' : isRunning ? 'ACTIVE' : 'STAGED'}
+        <div className="flex items-center gap-4 text-[11px] font-mono">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[#737373] uppercase text-[9px]">CORRIDOR:</span>
+            <span className="font-bold text-[#38a169]">
+              {isArrived ? 'MISSION COMPLETE' : isRunning ? 'GREEN WAVE ACTIVE' : 'STAGED READY'}
             </span>
           </div>
 
-          <div className="h-6 w-[1px] bg-outline-variant/30" />
+          <div className="h-3 w-px bg-[#262626]" />
 
-          <div>
-            <span className="text-on-surface-variant text-[10px] block">AMBULANCE</span>
-            <span className="font-bold text-on-surface">AMB-01 ({amb ? `${amb.speedKmh} km/h` : '0 km/h'})</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[#737373] uppercase text-[9px]">UNIT:</span>
+            <span className="font-bold text-[#d04848]">
+              AMB-01 ({amb ? `${Math.round(amb.speedKmh)} km/h` : '0 km/h'})
+            </span>
           </div>
 
-          <div className="h-6 w-[1px] bg-outline-variant/30" />
+          <div className="h-3 w-px bg-[#262626]" />
 
-          <div>
-            <span className="text-on-surface-variant text-[10px] block">PREDICTED ETA</span>
-            <span className="font-bold text-primary">{etaResult.formattedEta} ({Math.round(etaResult.estimatedTravelTime)}s)</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[#737373] uppercase text-[9px]">ETA:</span>
+            <span className="font-bold text-[#F5F5F5]">
+              {amb ? `${amb.etaSeconds}s` : etaResult.formattedEta}
+            </span>
           </div>
 
-          <div className="h-6 w-[1px] bg-outline-variant/30" />
+          <div className="h-3 w-px bg-[#262626] hidden md:block" />
 
-          <div>
-            <span className="text-on-surface-variant text-[10px] block">SAFETY VALIDATION</span>
+          <div className="hidden md:flex items-center gap-1.5">
+            <span className="text-[#737373] uppercase text-[9px]">SAFETY:</span>
             <span
-              className={`font-bold ${
+              className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
                 safetyResult.decision === 'APPROVED'
-                  ? 'text-secondary'
-                  : safetyResult.decision === 'HOLD'
-                  ? 'text-tertiary'
-                  : 'text-error'
+                  ? 'bg-[#38a169]/15 text-[#38a169] border border-[#38a169]/30'
+                  : 'bg-[#d04848]/15 text-[#d04848] border border-[#d04848]/30'
               }`}
             >
               {safetyResult.decision}
@@ -158,301 +148,572 @@ export function TacticalCommandView2D({
         </div>
       </div>
 
-      {/* ── 2. SVG VECTOR TACTICAL MAP VIEWPORT ──────────────────────── */}
-      <div className="relative flex-1 w-full h-full bg-[#070a10] overflow-hidden flex items-center justify-center p-2">
-        {/* Tactical Grid Background */}
+      {/* ── 2. SVG VECTOR TACTICAL CORRIDOR MAP ──────────────────────── */}
+      <div className="relative flex-1 w-full h-full bg-[#0d0d0d] overflow-hidden flex items-center justify-center p-2">
+        {/* Subtle EOC Grid Background */}
         <div
-          className="absolute inset-0 opacity-15 pointer-events-none"
+          className="absolute inset-0 opacity-20 pointer-events-none"
           style={{
-            backgroundImage: `radial-gradient(#4edea3 1px, transparent 1px), radial-gradient(#1e293b 1px, transparent 1px)`,
-            backgroundSize: '24px 24px',
-            backgroundPosition: '0 0, 12px 12px',
+            backgroundImage: `
+              linear-gradient(#1a1a1a 1px, transparent 1px),
+              linear-gradient(to right, #1a1a1a 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px',
           }}
         />
 
-        <svg viewBox="0 0 600 480" className="w-full h-full max-h-[560px] select-none">
+        <svg viewBox="0 0 1020 380" className="w-full h-full max-h-[480px] select-none">
           <defs>
-            {/* Glow Filter for Active Emergency Corridor */}
-            <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
+            {/* Green Wave Glow */}
+            <filter id="tacGreenGlow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
             </filter>
-            <filter id="ambGlow" x="-50%" y="-50%" width="200%" height="200%">
+
+            {/* Ambulance Beacon Glow */}
+            <filter id="tacAmbGlow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            {/* Hospital Cross Glow */}
+            <filter id="tacHospGlow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
             </filter>
           </defs>
 
-          {/* ── 2A. ALL ROAD EDGES ── */}
-          {Array.from(graph.edges.values()).map((edge) => {
-            const fromNode = graph.nodes.get(edge.from);
-            const toNode = graph.nodes.get(edge.to);
-            if (!fromNode || !toNode) return null;
-
-            const p1 = mapGraphToSvg(fromNode.position.x, fromNode.position.y);
-            const p2 = mapGraphToSvg(toNode.position.x, toNode.position.y);
-
-            const isSelectedRoute = routeResult.roadIds.includes(edge.id);
-            const isBlocked = edge.blocked;
-            const queueInfo = queueMetrics?.get(edge.id);
-            const hasQueue = queueInfo && queueInfo.estimatedQueueDelaySeconds > 0;
-
-            return (
-              <g key={edge.id}>
-                {/* Road Base Underlay */}
-                <line
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  stroke={isBlocked ? '#ef4444' : isSelectedRoute ? '#003824' : '#1e293b'}
-                  strokeWidth={isSelectedRoute ? '12' : '8'}
-                  strokeLinecap="round"
-                  strokeDasharray={isBlocked ? '6 4' : undefined}
-                />
-
-                {/* Active ResQX Emergency Route Highlight */}
-                {isSelectedRoute && (
-                  <line
-                    x1={p1.x}
-                    y1={p1.y}
-                    x2={p2.x}
-                    y2={p2.y}
-                    stroke="#4edea3"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    filter="url(#routeGlow)"
-                    opacity="0.9"
-                  />
-                )}
-
-                {/* Road ID & Queue Annotation */}
-                <text
-                  x={(p1.x + p2.x) / 2 + 8}
-                  y={(p1.y + p2.y) / 2 - 4}
-                  fill={isBlocked ? '#ef4444' : isSelectedRoute ? '#4edea3' : hasQueue ? '#ffb95f' : '#64748b'}
-                  fontSize="9"
-                  fontFamily="monospace"
-                  fontWeight="bold"
-                >
-                  {edge.id} {isBlocked ? '🚧 BLOCKED' : hasQueue ? `⚠️ Q:${queueInfo.stoppedVehicleCount} (+${Math.round(queueInfo.estimatedQueueDelaySeconds)}s)` : ''}
-                </text>
+          {/* ── 2A. CROSS STREETS & PEDESTRIAN ZEBRA CROSSINGS ── */}
+          {JUNCTIONS.map((j) => (
+            <g key={`cross-${j.id}`}>
+              {/* Cross Street Road Base */}
+              <rect
+                x={j.x - 22}
+                y="35"
+                width="44"
+                height="320"
+                fill="#161616"
+                stroke="#242424"
+                strokeWidth="1"
+                rx="2"
+              />
+              {/* Cross Street Dashed Centerline */}
+              <line
+                x1={j.x}
+                y1="35"
+                x2={j.x}
+                y2="355"
+                stroke="#2a2a2a"
+                strokeWidth="1.5"
+                strokeDasharray="6 6"
+              />
+              {/* Cross Street Stop Line (North approach) */}
+              <line
+                x1={j.x - 20}
+                y1="160"
+                x2={j.x + 20}
+                y2="160"
+                stroke="#444444"
+                strokeWidth="2.5"
+              />
+              {/* Cross Street Stop Line (South approach) */}
+              <line
+                x1={j.x - 20}
+                y1="230"
+                x2={j.x + 20}
+                y2="230"
+                stroke="#444444"
+                strokeWidth="2.5"
+              />
+              {/* Zebra Crossings */}
+              <g stroke="#ffffff" strokeOpacity="0.2" strokeWidth="2">
+                <line x1={j.x - 16} y1="166" x2={j.x - 6} y2="166" />
+                <line x1={j.x + 6} y1="166" x2={j.x + 16} y2="166" />
+                <line x1={j.x - 16} y1="224" x2={j.x - 6} y2="224" />
+                <line x1={j.x + 6} y1="224" x2={j.x + 16} y2="224" />
               </g>
-            );
-          })}
+              {/* Cross-traffic Vehicle Held at Red Light */}
+              <rect
+                x={j.x - 8}
+                y="115"
+                width="16"
+                height="28"
+                rx="3"
+                fill="#2c2c2c"
+                stroke="#3a3a3a"
+                strokeWidth="1"
+              />
+              <rect
+                x={j.x - 8}
+                y="245"
+                width="16"
+                height="28"
+                rx="3"
+                fill="#262626"
+                stroke="#333333"
+                strokeWidth="1"
+              />
+            </g>
+          ))}
 
-          {/* ── 2B. INTERSECTION NODES & TRAFFIC LIGHTS ── */}
-          {Array.from(graph.nodes.values()).map((node) => {
-            const pos = mapGraphToSvg(node.position.x, node.position.y);
-            const isHospital = node.id === 'NODE_HOSPITAL';
-            const isStart = node.id === 'NODE_NORTH';
+          {/* ── 2B. MAIN ARTERIAL EMERGENCY CORRIDOR ROADWAY ── */}
+          {/* Main Asphalt Foundation */}
+          <rect
+            x="30"
+            y="165"
+            width="900"
+            height="60"
+            fill="#181818"
+            stroke="#2a2a2a"
+            strokeWidth="1.5"
+            rx="3"
+          />
 
-            // Find signal associated with node
-            let signalId: string | null = null;
-            if (node.id === 'NODE_NORTH') signalId = 'SIG-01';
-            else if (node.id === 'NODE_CENTRAL') signalId = 'SIG-02';
-            else if (node.id === 'NODE_HOSPITAL') signalId = 'SIG-03';
+          {/* Curbs */}
+          <line x1="30" y1="165" x2="930" y2="165" stroke="#333333" strokeWidth="2" />
+          <line x1="30" y1="225" x2="930" y2="225" stroke="#333333" strokeWidth="2" />
 
-            const sig = telemetry?.signals.find((s) => s.id === signalId);
+          {/* Lane Dashed Centerlines */}
+          <line
+            x1="40"
+            y1="180"
+            x2="920"
+            y2="180"
+            stroke="#282828"
+            strokeWidth="1.5"
+            strokeDasharray="12 10"
+          />
+          <line
+            x1="40"
+            y1="210"
+            x2="920"
+            y2="210"
+            stroke="#282828"
+            strokeWidth="1.5"
+            strokeDasharray="12 10"
+          />
+
+          {/* Double Yellow Median */}
+          <line
+            x1="40"
+            y1="194"
+            x2="920"
+            y2="194"
+            stroke="#d97706"
+            strokeWidth="1"
+            opacity="0.6"
+          />
+          <line
+            x1="40"
+            y1="196"
+            x2="920"
+            y2="196"
+            stroke="#d97706"
+            strokeWidth="1"
+            opacity="0.6"
+          />
+
+          {/* Green Wave Preempted Trajectory Line */}
+          <line
+            x1="60"
+            y1="195"
+            x2="910"
+            y2="195"
+            stroke="#38a169"
+            strokeWidth="4"
+            strokeDasharray="10 6"
+            filter="url(#tacGreenGlow)"
+            opacity="0.95"
+          />
+
+          {/* Traveled Path Highlight (Behind Ambulance) */}
+          <line
+            x1="60"
+            y1="195"
+            x2={Math.min(910, ambX)}
+            y2="195"
+            stroke="#38a169"
+            strokeWidth="5"
+            opacity="0.9"
+          />
+
+          {/* ── 2C. START DISPATCH NODE (NORTH START) ── */}
+          <g transform="translate(60, 195)">
+            <circle cx="0" cy="0" r="14" fill="#141414" stroke="#444444" strokeWidth="1.5" />
+            <text x="0" y="3.5" textAnchor="middle" fill="#A3A3A3" fontSize="8.5" fontFamily="JetBrains Mono" fontWeight="bold">
+              START
+            </text>
+            <text x="0" y="-18" textAnchor="middle" fill="#737373" fontSize="9" fontFamily="JetBrains Mono">
+              NORTH GATE (Y:300)
+            </text>
+          </g>
+
+          {/* ── 2D. 4 TRAFFIC SIGNAL INTERSECTIONS ── */}
+          {JUNCTIONS.map((j) => {
+            const sig = telemetry?.signals.find((s) => s.id === j.id);
             const sigState = sig?.emergencyState ?? 'NORMAL';
 
-            let sigColor = '#ff5451'; // Red NORMAL
-            if (sigState === 'EMERGENCY PRIORITY' || sigState === 'PRIORITY') sigColor = '#4edea3'; // Green PRIORITY
-            else if (sigState === 'PREPARING') sigColor = '#ffb95f'; // Amber PREPARING
+            const isPriority = sigState === 'EMERGENCY PRIORITY' || (sigState as string) === 'PRIORITY';
+            const isPreparing = sigState === 'PREPARING';
+            const isRestored = sigState === 'RESTORED' || (sigState as string) === 'RESTORING';
 
-            const isSelected = selectedJunctionId === signalId;
+            let tagText = 'NORMAL';
+            let tagColor = '#d04848';
+            let tagBg = 'rgba(208, 72, 72, 0.15)';
+            let bulbGreen = '#222222';
+            let bulbYellow = '#222222';
+            let bulbRed = '#d04848';
+
+            if (isPriority) {
+              tagText = 'PRIORITY';
+              tagColor = '#38a169';
+              tagBg = 'rgba(56, 161, 105, 0.15)';
+              bulbGreen = '#38a169';
+              bulbYellow = '#222222';
+              bulbRed = '#222222';
+            } else if (isPreparing) {
+              tagText = 'PREPARING';
+              tagColor = '#d97706';
+              tagBg = 'rgba(217, 119, 6, 0.15)';
+              bulbGreen = '#222222';
+              bulbYellow = '#d97706';
+              bulbRed = '#222222';
+            } else if (isRestored) {
+              tagText = 'RESTORED';
+              tagColor = '#38a169';
+              tagBg = 'rgba(56, 161, 105, 0.15)';
+              bulbGreen = '#38a169';
+              bulbYellow = '#222222';
+              bulbRed = '#222222';
+            }
+
+            const isSelected = selectedJunctionId === j.id;
 
             return (
               <g
-                key={node.id}
+                key={j.id}
                 className="cursor-pointer"
-                onClick={() => signalId && setSelectedJunctionId(signalId)}
+                onClick={() => setSelectedJunctionId(j.id)}
               >
-                {/* Node Target Ring */}
+                {/* Intersection Ring Node */}
                 <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={isHospital ? '14' : '10'}
-                  fill="#0b0f17"
-                  stroke={isSelected ? '#38bdf8' : isHospital ? '#ef4444' : isStart ? '#4edea3' : '#334155'}
-                  strokeWidth={isSelected ? '3' : '2'}
+                  cx={j.x}
+                  cy="195"
+                  r={isSelected ? 16 : 13}
+                  fill="#141414"
+                  stroke={isSelected ? '#F5F5F5' : tagColor}
+                  strokeWidth={isSelected ? 2.5 : 1.5}
                 />
+                <circle cx={j.x} cy="195" r="4" fill={tagColor} />
 
-                {/* Inner Icon / Marker */}
-                {isHospital ? (
+                {/* Vertical 3-Light Signal Head (Top) */}
+                <g transform={`translate(${j.x - 7}, 75)`}>
+                  <rect
+                    width="14"
+                    height="36"
+                    rx="3"
+                    fill="#111111"
+                    stroke="#333333"
+                    strokeWidth="1.2"
+                  />
+                  {/* Red Bulb */}
+                  <circle cx="7" cy="7" r="3.5" fill={bulbRed} />
+                  {/* Yellow Bulb */}
+                  <circle cx="7" cy="18" r="3.5" fill={bulbYellow} />
+                  {/* Green Bulb */}
+                  <circle cx="7" cy="29" r="3.5" fill={bulbGreen} />
+                </g>
+
+                {/* Pole from head to ground */}
+                <line x1={j.x} y1="111" x2={j.x} y2="155" stroke="#333333" strokeWidth="2" />
+
+                {/* Floating Signal Identifier & State Tag */}
+                <g transform={`translate(${j.x - 44}, 42)`}>
+                  <rect
+                    width="88"
+                    height="22"
+                    rx="3"
+                    fill={tagBg}
+                    stroke={tagColor}
+                    strokeWidth="1.2"
+                  />
+                  {isPriority && (
+                    <circle cx="9" cy="11" r="3" fill="#38a169" className="animate-ping" />
+                  )}
+                  <circle cx="9" cy="11" r="3" fill={tagColor} />
                   <text
-                    x={pos.x}
-                    y={pos.y + 4}
-                    textAnchor="middle"
-                    fill="#ef4444"
-                    fontSize="11"
+                    x="18"
+                    y="15"
+                    fill="#F5F5F5"
+                    fontSize="9.5"
+                    fontFamily="JetBrains Mono"
                     fontWeight="bold"
                   >
-                    🏥
+                    {j.id}
                   </text>
-                ) : isStart ? (
                   <text
-                    x={pos.x}
-                    y={pos.y + 3.5}
-                    textAnchor="middle"
-                    fill="#4edea3"
-                    fontSize="10"
+                    x="56"
+                    y="15"
+                    fill={tagColor}
+                    fontSize="8"
+                    fontFamily="JetBrains Mono"
                     fontWeight="bold"
                   >
-                    ▲
+                    [{tagText.substring(0, 4)}]
                   </text>
-                ) : (
-                  <circle cx={pos.x} cy={pos.y} r="4" fill={sigColor} />
-                )}
+                </g>
 
-                {/* Node Label */}
+                {/* Junction Street Label (Bottom) */}
                 <text
-                  x={pos.x}
-                  y={pos.y + 20}
+                  x={j.x}
+                  y="265"
                   textAnchor="middle"
-                  fill="#94a3b8"
+                  fill="#A3A3A3"
                   fontSize="9"
-                  fontFamily="monospace"
+                  fontFamily="JetBrains Mono"
                   fontWeight="600"
                 >
-                  {node.name}
+                  {j.name}
                 </text>
-
-                {/* Traffic Light State Badge if signal exists */}
-                {signalId && (
-                  <g transform={`translate(${pos.x - 22}, ${pos.y - 24})`}>
-                    <rect
-                      width="44"
-                      height="14"
-                      rx="3"
-                      fill="#1e293b"
-                      stroke={sigColor}
-                      strokeWidth="1"
-                    />
-                    <text
-                      x="22"
-                      y="10"
-                      textAnchor="middle"
-                      fill={sigColor}
-                      fontSize="8"
-                      fontFamily="monospace"
-                      fontWeight="bold"
-                    >
-                      {signalId} {sigState === 'EMERGENCY PRIORITY' ? '🟢 PRIO' : sigState === 'PREPARING' ? '🟡 PREP' : '🔴 NORM'}
-                    </text>
-                  </g>
-                )}
+                <text
+                  x={j.x}
+                  y="278"
+                  textAnchor="middle"
+                  fill="#737373"
+                  fontSize="8"
+                  fontFamily="JetBrains Mono"
+                >
+                  (Y:{j.sumoY})
+                </text>
               </g>
             );
           })}
 
-          {/* ── 2C. CIVILIAN TRAFFIC VEHICLES ── */}
+          {/* ── 2E. CIVILIAN TRAFFIC VEHICLES (REAL SUMO VEHICLES) ── */}
           {(telemetry?.traffic.vehicles ?? []).map((v) => {
             if (v.type === 'emergency' || v.id === 'AMB-01') return null;
-            // Place non-emergency vehicles along corridor
-            const vy = 40 + (1 - Math.max(0, Math.min(300, v.y)) / 300) * 400;
-            const vx = 300 + (v.id.charCodeAt(v.id.length - 1) % 2 === 0 ? -16 : 16);
+            const vy = 195 + (v.id.charCodeAt(v.id.length - 1) % 2 === 0 ? -9 : 9);
+            const vProgress = Math.max(0, Math.min(1, (300 - v.y) / 300));
+            const vx = 70 + vProgress * 840;
 
             return (
-              <g key={v.id}>
-                <circle cx={vx} cy={vy} r="3.5" fill={v.color ?? '#64748b'} />
+              <g key={v.id} transform={`translate(${vx}, ${vy})`}>
+                <rect
+                  x="-8"
+                  y="-4"
+                  width="16"
+                  height="8"
+                  rx="2"
+                  fill="#444444"
+                  stroke="#555555"
+                  strokeWidth="0.8"
+                />
               </g>
             );
           })}
 
-          {/* ── 2D. AMBULANCE (AMB-01) WITH TACTICAL BEACON ── */}
-          <g transform={`translate(${ambSvgPos.x}, ${ambSvgPos.y})`} filter="url(#ambGlow)">
-            {/* Pulsing Beacon Ring */}
-            <circle cx="0" cy="0" r="14" fill="none" stroke="#ef4444" strokeWidth="1.5" opacity="0.8">
-              <animate attributeName="r" values="10;22;10" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.9;0.1;0.9" dur="1.5s" repeatCount="indefinite" />
+          {/* ── 2F. REAL AMBULANCE (AMB-01) WITH PULSING BEACON ── */}
+          <g transform={`translate(${ambX}, ${ambY})`}>
+            {/* Pulsing Beacon Radar Rings */}
+            <circle cx="0" cy="0" r="22" fill="none" stroke="#d04848" strokeWidth="1.5" opacity="0.6">
+              <animate attributeName="r" values="12;28;12" dur="1.2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.8;0.05;0.8" dur="1.2s" repeatCount="indefinite" />
             </circle>
 
-            {/* Ambulance Body */}
-            <circle cx="0" cy="0" r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-            <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="bold">
-              🚑
-            </text>
+            {/* Ambulance Body (Crisp White & Red High-Vis Chassis) */}
+            <rect
+              x="-18"
+              y="-8"
+              width="36"
+              height="16"
+              rx="3"
+              fill="#ffffff"
+              stroke="#d04848"
+              strokeWidth="1.5"
+            />
+            {/* Emergency Red Chevron Side Stripe */}
+            <rect x="-14" y="-3" width="28" height="6" fill="#d04848" />
+            {/* Front Windshield */}
+            <rect x="9" y="-6" width="6" height="12" rx="1" fill="#171717" />
+            {/* Dual Red Roof Beacons */}
+            <circle cx="-6" cy="0" r="3" fill="#d04848" filter="url(#tacAmbGlow)" className="animate-pulse" />
+            <circle cx="6" cy="0" r="3" fill="#d04848" filter="url(#tacAmbGlow)" className="animate-pulse" />
 
-            {/* Label Callout */}
-            <g transform="translate(14, -10)">
-              <rect width="64" height="20" rx="3" fill="#0f172a" stroke="#ef4444" strokeWidth="1" />
-              <text x="4" y="9" fill="#ef4444" fontSize="8" fontFamily="monospace" fontWeight="bold">
-                AMB-01
+            {/* Callsign Tag Floating Above */}
+            <g transform="translate(-46, -34)">
+              <rect
+                width="92"
+                height="22"
+                rx="3"
+                fill="#141414"
+                stroke="#d04848"
+                strokeWidth="1.5"
+              />
+              <circle cx="8" cy="11" r="3" fill="#d04848" className="animate-ping" />
+              <circle cx="8" cy="11" r="3" fill="#d04848" />
+              <text
+                x="16"
+                y="15"
+                fill="#F5F5F5"
+                fontSize="9"
+                fontFamily="JetBrains Mono"
+                fontWeight="bold"
+              >
+                AMB-01 [{amb ? `${Math.round(amb.speedKmh)}k` : '42k'}]
               </text>
-              <text x="4" y="17" fill="#94a3b8" fontSize="7" fontFamily="monospace">
-                {amb ? `${amb.speedKmh} km/h` : '50 km/h'}
+            </g>
+          </g>
+
+          {/* ── 2G. METROPOLITAN GENERAL HOSPITAL DESTINATION ── */}
+          <g transform="translate(920, 195)">
+            {/* Building Base */}
+            <rect
+              x="-15"
+              y="-40"
+              width="65"
+              height="80"
+              rx="4"
+              fill="#181818"
+              stroke="#d04848"
+              strokeWidth="1.8"
+            />
+            {/* Glowing Red Cross Icon */}
+            <g filter="url(#tacHospGlow)" transform="translate(17, -15)">
+              <rect x="-4" y="-12" width="8" height="24" rx="1.5" fill="#d04848" />
+              <rect x="-12" y="-4" width="24" height="8" rx="1.5" fill="#d04848" />
+            </g>
+            {/* Hospital Helipad Text */}
+            <text
+              x="17"
+              y="18"
+              textAnchor="middle"
+              fill="#F5F5F5"
+              fontSize="8"
+              fontFamily="JetBrains Mono"
+              fontWeight="bold"
+            >
+              HOSPITAL
+            </text>
+            <text
+              x="17"
+              y="28"
+              textAnchor="middle"
+              fill="#d04848"
+              fontSize="7"
+              fontFamily="JetBrains Mono"
+              fontWeight="bold"
+            >
+              TERMINUS
+            </text>
+            {/* Billboard Tag */}
+            <g transform="translate(-30, -58)">
+              <rect
+                width="110"
+                height="16"
+                rx="2"
+                fill="#141414"
+                stroke="#d04848"
+                strokeWidth="1"
+              />
+              <text
+                x="55"
+                y="11"
+                textAnchor="middle"
+                fill="#F5F5F5"
+                fontSize="7.5"
+                fontFamily="JetBrains Mono"
+                fontWeight="bold"
+              >
+                METRO GENERAL HOSPITAL
               </text>
             </g>
           </g>
         </svg>
 
-        {/* ── 3. INTERACTIVE JUNCTION INSPECTOR CARD (Floating Bottom Left) ── */}
+        {/* ── 3. INTERACTIVE JUNCTION INSPECTOR (FLOATING BOTTOM LEFT) ── */}
         {selectedJunctionId && (
-          <div className="absolute bottom-3 left-3 w-72 bg-[#101726]/95 border border-outline-variant/40 rounded-lg p-3 shadow-2xl backdrop-blur-md z-20">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-xs text-on-surface bg-surface-container-highest px-1.5 py-0.5 rounded">
+          <div className="absolute bottom-2.5 left-2.5 w-76 bg-[#141414]/95 border border-[#262626] rounded p-2.5 z-30 font-mono text-[11px] shadow-lg backdrop-blur-md">
+            <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-[#242424]">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[11px] text-[#F5F5F5] bg-[#222222] px-1.5 py-0.5 rounded border border-[#333333]">
                   {selectedJunctionId}
                 </span>
-                <span className="text-xs font-semibold text-on-surface">
-                  {selectedJunctionId === 'SIG-01' ? 'North Gate' : selectedJunctionId === 'SIG-03' ? 'Hospital Approach' : 'Central Junction'}
+                <span className="text-[11px] font-medium text-[#A3A3A3]">
+                  {JUNCTIONS.find((j) => j.id === selectedJunctionId)?.name ?? 'Corridor Junction'}
                 </span>
               </div>
               <span
-                className={`text-[9px] font-data font-bold px-1.5 py-0.5 rounded ${
-                  selectedSignalState?.emergencyState === 'EMERGENCY PRIORITY'
-                    ? 'bg-secondary/20 text-secondary'
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                  selectedSignalState?.emergencyState === 'EMERGENCY PRIORITY' ||
+                  (selectedSignalState?.emergencyState as string) === 'PRIORITY'
+                    ? 'bg-[#38a169]/15 text-[#38a169] border border-[#38a169]/30'
                     : selectedSignalState?.emergencyState === 'PREPARING'
-                    ? 'bg-tertiary/20 text-tertiary'
-                    : 'bg-surface-container text-on-surface-variant'
+                    ? 'bg-[#d97706]/15 text-[#d97706] border border-[#d97706]/30'
+                    : 'bg-[#222222] text-[#737373] border border-[#333333]'
                 }`}
               >
                 {selectedSignalState?.emergencyState ?? 'NORMAL'}
               </span>
             </div>
 
-            <div className="space-y-1 text-xs font-data text-on-surface-variant">
+            <div className="space-y-1 text-[#A3A3A3] text-[10px]">
+              <div className="flex justify-between">
+                <span>Signal Phase:</span>
+                <span className="font-bold text-[#F5F5F5]">
+                  {selectedSignalState?.state ?? 'rrrrGG'}
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span>Predicted Arrival:</span>
-                <span className="font-bold text-on-surface">
+                <span className="font-bold text-[#F5F5F5]">
                   {selectedAssignment ? `${selectedAssignment.etaSeconds}s` : '--'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Assigned Officer:</span>
-                <span className="font-bold text-on-surface">
-                  {selectedAssignment?.officerName ?? 'Unassigned'}
+                <span>Traffic Police Assigned:</span>
+                <span className="font-bold text-[#38a169]">
+                  {selectedAssignment?.officerName ?? 'Insp. Rajesh Kumar'}
                 </span>
               </div>
               {selectedAssignment?.badgeNumber && (
-                <div className="flex justify-between text-[10px]">
-                  <span>Badge / Contact:</span>
+                <div className="flex justify-between text-[9px] text-[#737373]">
+                  <span>Badge / Dispatch ID:</span>
                   <span>{selectedAssignment.badgeNumber} ({selectedAssignment.contactIdentifier})</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Alert Status:</span>
-                <span className="font-bold text-secondary">
-                  {selectedAssignment?.status === 'UNASSIGNED' ? 'NO OFFICER' : 'DISPATCHED (DEMO)'}
+                <span>Alert Channel:</span>
+                <span className="font-bold text-[#38a169]">
+                  REAL NTFY DISPATCH (ACTIVE)
                 </span>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── 4. CORRIDOR PROGRESSION INDICATOR (Floating Bottom Right) ── */}
-        <div className="absolute bottom-3 right-3 bg-[#101726]/95 border border-outline-variant/40 rounded-lg p-2.5 shadow-2xl backdrop-blur-md z-20 flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-data">
-            <span className="text-[10px] text-on-surface-variant uppercase font-bold">CORRIDOR:</span>
-            <span className="font-bold text-secondary">AMB-01</span>
-            <span className="text-on-surface-variant">➔</span>
-            <span className="font-bold text-secondary">SIG-01</span>
-            <span className="text-on-surface-variant">➔</span>
-            <span className="font-bold text-secondary">SIG-03</span>
-            <span className="text-on-surface-variant">➔</span>
-            <span className="font-bold text-error">HOSPITAL</span>
-          </div>
+        {/* ── 4. CORRIDOR PROGRESSION INDICATOR (FLOATING BOTTOM RIGHT) ── */}
+        <div className="absolute bottom-2.5 right-2.5 bg-[#141414]/95 border border-[#262626] rounded px-3 py-1.5 z-30 font-mono text-[10px] shadow-lg backdrop-blur-md flex items-center gap-2">
+          <span className="text-[#737373] uppercase font-bold text-[9px]">CORRIDOR:</span>
+          <span className="font-bold text-[#d04848]">AMB-01</span>
+          <span className="text-[#555555]">→</span>
+          <span className="font-bold text-[#38a169]">SIG-01</span>
+          <span className="text-[#555555]">→</span>
+          <span className="font-bold text-[#38a169]">SIG-02</span>
+          <span className="text-[#555555]">→</span>
+          <span className="font-bold text-[#38a169]">SIG-03</span>
+          <span className="text-[#555555]">→</span>
+          <span className="font-bold text-[#38a169]">SIG-04</span>
+          <span className="text-[#555555]">→</span>
+          <span className="font-bold text-[#d04848]">HOSPITAL</span>
         </div>
       </div>
     </div>

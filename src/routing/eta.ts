@@ -261,7 +261,16 @@ function calculateJunctionArrivals({
 
     for (const sig of roadSignals) {
       // Estimate signal position along road (or 0.5 middle of road if not positioned)
-      const sigProgressAlongEdge = 0.5;
+      let sigProgressAlongEdge = 0.5;
+      if (sig.position && edge.points && edge.points.length >= 2) {
+        const start = edge.points[0];
+        const end = edge.points[edge.points.length - 1];
+        const totalSpan = Math.hypot(end.x - start.x, end.y - start.y);
+        if (totalSpan > 0) {
+          const sigDist = Math.hypot(sig.position.x - start.x, sig.position.y - start.y);
+          sigProgressAlongEdge = Math.max(0.05, Math.min(0.98, sigDist / totalSpan));
+        }
+      }
 
       if (isCurrent && sigProgressAlongEdge < progress) {
         // Ambulance has already passed this signal on the current road

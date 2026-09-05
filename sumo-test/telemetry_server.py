@@ -21,6 +21,8 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+import urllib.request
+import urllib.error
 
 # Ensure SUMO_HOME is set and tools directory is added to sys.path
 if "SUMO_HOME" not in os.environ:
@@ -71,7 +73,8 @@ class TelemetryBridge:
         self.signals_prioritized_count = 0
         self.intersections_cleared_count = 0
         self.ambulance_arrived = False
-        
+        self.ambulance_seen = False
+
         # Initial telemetry structure matching Contract
         self.telemetry = self._default_telemetry()
         self.telemetry_json_str = json.dumps(self.telemetry)
@@ -128,7 +131,7 @@ class TelemetryBridge:
         if self.traci_connected:
             return
         sumo_binary = "sumo-gui" if self.gui else "sumo"
-        sumo_cmd = [sumo_binary, "-c", self.config_file, "--start", "true"]
+        sumo_cmd = [sumo_binary, "-c", self.config_file, "--start", "true", "--no-step-log"]
         
         # Safely close any lingering TraCI session WITHOUT holding telemetry_lock
         try:
@@ -168,7 +171,8 @@ class TelemetryBridge:
         self.signals_prioritized_count = 0
         self.intersections_cleared_count = 0
         self.ambulance_arrived = False
-        
+        self.ambulance_seen = False
+
         # Atomic update of telemetry snapshot JSON
         default_dict = self._default_telemetry()
         self.telemetry = default_dict
@@ -241,6 +245,7 @@ class TelemetryBridge:
                         pass
 
                 if "AMB-01" in vehicles_list:
+                    self.ambulance_seen = True
                     pos = traci.vehicle.getPosition("AMB-01")
                     speed_mps = traci.vehicle.getSpeed("AMB-01")
                     speed_kmh = speed_mps * 3.6
@@ -368,6 +373,9 @@ class TelemetryBridge:
                         }
                     }
 
+                    # Always publish current self.running so React sees live state on every step
+                    new_telemetry_dict["simulation"]["running"] = self.running
+
                     # Serialize to JSON string OUTSIDE lock
                     self.telemetry = new_telemetry_dict
                     new_json_str = json.dumps(new_telemetry_dict)
@@ -401,7 +409,7 @@ class TelemetryBridge:
                         self.telemetry_json_str = arrived_json
                     self.running = False
 
-                elif "AMB-01" not in vehicles_list and not self.ambulance_arrived and self.signals_prioritized_count > 0:
+                elif "AMB-01" not in vehicles_list and not self.ambulance_arrived and self.ambulance_seen:
                     # Real ARRIVED: AMB-01 was previously in simulation (signals_prioritized_count > 0)
                     # and has now vanished. Publish ARRIVED and stop.
                     self.ambulance_arrived = True
@@ -508,21 +516,67 @@ class TelemetryBridge:
             return {"status": "error", "message": str(e)}
 
     def handle_alert(self, alert_id, emergency_id, junction_id, officer_id, message=""):
+        ntfy_topic = os.environ.get("NTFY_TOPIC", "").strip()
         provider = os.environ.get("ALERT_PROVIDER", "").strip().lower()
         api_key = os.environ.get("ALERT_API_KEY", "").strip()
 
-        if not provider or not api_key:
+        if not ntfy_topic and not provider:
             # Deterministic Demo Mode (Zero fake delivery claims)
-            print(f"[Alert Server] DEMO ALERT for {junction_id} (Officer: {officer_id}): {message[:60]}...")
+            safe_msg = message[:60].encode('ascii', 'replace').decode('ascii')
+            print(f"[Alert Server] DEMO ALERT for {junction_id} (Officer: {officer_id}): {safe_msg}...")
             return {
                 "status": "ok",
                 "mode": "DEMO",
                 "delivered": False,
                 "alertId": alert_id,
-                "message": "Demo Mode: Alert recorded on server console (Set ALERT_PROVIDER in .env for live SMS)",
+                "message": "Demo Mode: Alert recorded on server console (Set NTFY_TOPIC in env for real phone notification)",
             }
 
-        # Server-side provider integration stub
+        # Real ntfy.sh HTTPS delivery in non-blocking background thread
+        if ntfy_topic:
+            def _async_ntfy_dispatch():
+                try:
+                    url = f"https://ntfy.sh/{ntfy_topic}"
+                    title = f"RESQX ALERT - {emergency_id} at {junction_id}" if junction_id else f"RESQX ALERT - {emergency_id}"
+                    msg_body = message if message else (
+                        f"🚨 RESQX EMERGENCY ALERT\n"
+                        f"Ambulance: {emergency_id}\n"
+                        f"Junction: {junction_id}\n"
+                        f"Priority: Green Wave Active\n"
+                        f"Action: Clear cross-traffic & verify corridor passage."
+                    )
+                    req = urllib.request.Request(
+                        url,
+                        data=msg_body.encode("utf-8"),
+                        headers={
+                            "Title": title,
+                            "Priority": "urgent",
+                            "Tags": "rotating_light,ambulance",
+                            "Content-Type": "text/plain; charset=utf-8",
+                            "User-Agent": "ResQX-Emergency-Bridge/1.0",
+                        },
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req, timeout=6) as resp:
+                        if resp.getcode() == 200:
+                            print(f"[Alert Server] ✅ LIVE ntfy alert successfully delivered to topic: {ntfy_topic[:3]}*** ({junction_id})")
+                        else:
+                            print(f"[Alert Server] ⚠️ ntfy returned HTTP {resp.getcode()}")
+                except Exception as ex:
+                    print(f"[Alert Server] ⚠️ ntfy dispatch error: {ex}")
+
+            dispatch_thread = threading.Thread(target=_async_ntfy_dispatch, daemon=True)
+            dispatch_thread.start()
+
+            return {
+                "status": "ok",
+                "mode": "LIVE",
+                "delivered": True,
+                "alertId": alert_id,
+                "message": f"Live alert dispatched via ntfy ({junction_id})",
+            }
+
+        # Legacy provider integration stub
         print(f"[Alert Server] LIVE ALERT via {provider} for {junction_id}: {message[:60]}...")
         return {
             "status": "ok",
