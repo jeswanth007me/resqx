@@ -102,7 +102,7 @@ export function SimulationControls({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={onStart}
+          onClick={isRunning ? undefined : onStart}
           className="flex items-center gap-2 px-4 py-2 font-mono font-bold text-[11px] rounded transition-all uppercase tracking-wider shadow-sm bg-[#d04848] text-white hover:bg-[#e15252] border border-[#e15252] cursor-pointer"
         >
           <span className="material-symbols-outlined text-[14px]">warning</span>
