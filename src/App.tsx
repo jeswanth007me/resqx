@@ -30,7 +30,7 @@ export interface DispatchedAlertRecord {
   emergencyId: string;
   officerName: string;
   badgeNumber: string;
-  status: 'DISPATCHED' | 'DELIVERED';
+  status: 'DISPATCHED' | 'DELIVERED' | 'DEMO';
   timestamp: number;
   title: string;
   mode: 'DEMO' | 'LIVE';
@@ -173,6 +173,10 @@ function App() {
         getAlertService()
           .sendAlert(alert)
           .then((res) => {
+            const isDelivered = res.status === 'DELIVERED';
+            const isLive = res.mode === 'LIVE';
+            const alertStatus = isDelivered ? 'DELIVERED' : res.mode === 'DEMO' ? 'DEMO' : 'DISPATCHED';
+
             setDispatchedAlerts((prev) => [
               ...prev.filter((a) => a.signalId !== sigId),
               {
@@ -180,26 +184,45 @@ function App() {
                 emergencyId: amb.id,
                 officerName: officer.name,
                 badgeNumber: officer.badgeNumber,
-                status: res.status === 'DELIVERED' ? 'DELIVERED' : 'DISPATCHED',
+                status: alertStatus,
                 timestamp: tTime,
                 title: `RESQX ALERT — ${amb.id} at ${sigId}`,
                 mode: res.mode,
               },
             ]);
+
+            setPipelineEvents((prev) => [
+              {
+                id: `evt-police-alert-${sigId}-${tTime}`,
+                timestamp: tTime,
+                type: 'POLICE_ALERT_DISPATCHED',
+                description: isDelivered
+                  ? `👮 Real NTFY Alert DELIVERED to ${officer.name} for ${sigId} (RESQX ALERT — ${amb.id} at ${sigId})`
+                  : isLive
+                  ? `👮 Live Alert DISPATCHED to ${officer.name} for ${sigId} (Pending Provider Delivery)`
+                  : `👮 Demo Alert Recorded for ${officer.name} at ${sigId} (Console Demo Mode — Set NTFY_TOPIC for phone alerts)`,
+                severity: isDelivered ? 'SUCCESS' : 'INFO',
+                relatedSignal: sigId,
+                relatedUnit: amb.id,
+              },
+              ...prev,
+            ]);
           })
           .catch((err) => {
             console.warn(`[ResQX Alert] Outbound dispatch error for ${sigId}:`, err);
+            setPipelineEvents((prev) => [
+              {
+                id: `evt-police-alert-err-${sigId}-${tTime}`,
+                timestamp: tTime,
+                type: 'POLICE_ALERT_FAILED',
+                description: `⚠️ Alert delivery FAILED for ${sigId}: ${err instanceof Error ? err.message : 'Offline'}`,
+                severity: 'WARNING',
+                relatedSignal: sigId,
+                relatedUnit: amb.id,
+              },
+              ...prev,
+            ]);
           });
-
-        newEvents.push({
-          id: `evt-police-alert-${sigId}-${tTime}`,
-          timestamp: tTime,
-          type: 'POLICE_ALERT_DISPATCHED',
-          description: `👮 Real NTFY Alert DISPATCHED to ${officer.name} for ${sigId} (RESQX ALERT — ${amb.id} at ${sigId})`,
-          severity: 'INFO',
-          relatedSignal: sigId,
-          relatedUnit: amb.id,
-        });
       }
     };
 
@@ -364,6 +387,7 @@ function App() {
     };
     policeCoordinatorRef.current.resetHistory();
     setPipelineEvents([]);
+    setDispatchedAlerts([]);
   };
 
   const handleSpeedChange = (speed: 1 | 2 | 5) => {
@@ -532,7 +556,7 @@ function App() {
               {/* LOWER GRID: EVENT TIMELINE (LEFT 7 COLS) + AI DECISION & POLICE (RIGHT 5 COLS) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
                 <div className="lg:col-span-7 flex flex-col">
-                  <EventTimeline events={pipelineEvents} />
+                  <EventTimeline events={pipelineEvents} telemetry={telemetry} isRunning={isRunning} />
                 </div>
 
                 <div className="lg:col-span-5 flex flex-col gap-3">

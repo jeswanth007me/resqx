@@ -19,6 +19,7 @@ import time
 import math
 import json
 import threading
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 import urllib.request
@@ -131,7 +132,16 @@ class TelemetryBridge:
         if self.traci_connected:
             return
         sumo_binary = "sumo-gui" if self.gui else "sumo"
-        sumo_cmd = [sumo_binary, "-c", self.config_file, "--start", "true", "--no-step-log"]
+        sumo_cmd = [
+            sumo_binary,
+            "-c",
+            self.config_file,
+            "--start",
+            "true",
+            "--quit-on-end",
+            "true",
+            "--no-step-log",
+        ]
         
         # Safely close any lingering TraCI session WITHOUT holding telemetry_lock
         try:
@@ -156,11 +166,11 @@ class TelemetryBridge:
 
     def stop_sumo(self):
         if self.traci_connected:
+            self.traci_connected = False
             try:
                 traci.close()
             except Exception:
                 pass
-            self.traci_connected = False
             print("[SUMO Bridge] TraCI connection closed.")
 
     def reset_simulation(self):
@@ -408,6 +418,7 @@ class TelemetryBridge:
                     with self.telemetry_lock:
                         self.telemetry_json_str = arrived_json
                     self.running = False
+                    self.stop_sumo()
 
                 elif "AMB-01" not in vehicles_list and not self.ambulance_arrived and self.ambulance_seen:
                     # Real ARRIVED: AMB-01 was previously in simulation (signals_prioritized_count > 0)
@@ -432,12 +443,14 @@ class TelemetryBridge:
                     with self.telemetry_lock:
                         self.telemetry_json_str = arrived_json
                     self.running = False
+                    self.stop_sumo()
 
                 # else: AMB-01 still in sim (normal step) — loop continues
 
             except Exception as e:
                 print(f"[SUMO Bridge] Error in simulation step: {e}")
                 self.running = False
+                self.stop_sumo()
 
     def get_telemetry_snapshot_json(self):
         """Acquires lock for <0.001ms strictly to grab json string reference."""
@@ -448,6 +461,8 @@ class TelemetryBridge:
     def handle_control(self, action, value=None):
         action = action.lower()
         if action == "start":
+            if self.ambulance_arrived:
+                self.reset_simulation()
             if not self.traci_connected:
                 self.start_sumo()
             self.running = True
@@ -559,11 +574,11 @@ class TelemetryBridge:
                     )
                     with urllib.request.urlopen(req, timeout=6) as resp:
                         if resp.getcode() == 200:
-                            print(f"[Alert Server] ✅ LIVE ntfy alert successfully delivered to topic: {ntfy_topic[:3]}*** ({junction_id})")
+                            print(f"[Alert Server] [OK] LIVE ntfy alert successfully delivered to topic: {ntfy_topic[:3]}*** ({junction_id})")
                         else:
-                            print(f"[Alert Server] ⚠️ ntfy returned HTTP {resp.getcode()}")
+                            print(f"[Alert Server] [WARN] ntfy returned HTTP {resp.getcode()}")
                 except Exception as ex:
-                    print(f"[Alert Server] ⚠️ ntfy dispatch error: {ex}")
+                    print(f"[Alert Server] [WARN] ntfy dispatch error: {ex}")
 
             dispatch_thread = threading.Thread(target=_async_ntfy_dispatch, daemon=True)
             dispatch_thread.start()

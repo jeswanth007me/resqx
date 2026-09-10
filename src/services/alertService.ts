@@ -83,12 +83,14 @@ export class LiveAlertService implements AlertService {
       }
 
       const data = await response.json();
+      const isDelivered = Boolean(data.delivered);
+      const mode: AlertMode = data.mode === 'LIVE' ? 'LIVE' : 'DEMO';
       return {
         success: data.status === 'ok',
         alertId: alert.alertId,
-        status: data.delivered ? 'DELIVERED' : 'DISPATCHED',
-        mode: 'LIVE',
-        message: data.message || 'Alert dispatched via backend provider',
+        status: isDelivered ? 'DELIVERED' : mode === 'DEMO' ? 'DEMO' : 'DISPATCHED',
+        mode,
+        message: data.message || (isDelivered ? 'Live alert dispatched via ntfy' : 'Demo alert recorded on console'),
         timestamp,
       };
     } catch (err) {
