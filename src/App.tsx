@@ -4,6 +4,7 @@ import { sirenAudio } from './utils/sirenAudio';
 import { AppHeader } from './components/AppHeader';
 import { SimulationViewport } from './components/SimulationViewport';
 import { AmbulanceStatus } from './components/AmbulanceStatus';
+import { CorridorFlowPipeline } from './components/CorridorFlowPipeline';
 import { LiveTelemetryCard } from './components/LiveTelemetryCard';
 import { SignalStatus } from './components/SignalStatus';
 import { SafetyGateCard } from './components/SafetyGateCard';
@@ -473,73 +474,81 @@ function App() {
           />
         ) : (
           /* PRIMARY VIEW: TWO-COLUMN COMMAND CENTER LAYOUT */
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start min-h-0">
-            {/* ── LEFT / PRIMARY: DIGITAL TWIN & MISSION TIMELINE ── */}
-            <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3.5 min-h-0">
-              {/* Tactical Digital Twin Viewport */}
-              <div className="flex flex-col min-h-[480px]">
-                <SimulationViewport
+          <div className="flex-1 flex flex-col gap-3.5 min-h-0">
+            {/* Top Corridor Mission-Flow Strip */}
+            <CorridorFlowPipeline
+              telemetry={telemetry}
+              isRunning={isRunning}
+            />
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start min-h-0">
+              {/* ── LEFT / PRIMARY: DIGITAL TWIN & MISSION TIMELINE ── */}
+              <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3.5 min-h-0">
+                {/* Tactical Digital Twin Viewport */}
+                <div className="flex flex-col min-h-[480px]">
+                  <SimulationViewport
+                    telemetry={telemetry}
+                    connectionStatus={connectionStatus}
+                  />
+                </div>
+
+                {/* Mission Event Timeline */}
+                <div className="flex flex-col">
+                  <EventTimeline
+                    events={pipelineEvents}
+                    telemetry={telemetry}
+                    isRunning={isRunning}
+                  />
+                </div>
+              </div>
+
+              {/* ── RIGHT / SUPPORTING: OPERATIONAL DESK ── */}
+              <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-3.5 min-h-0">
+                {/* 1. Ambulance Status (AMB-01 Main Operational Entity) */}
+                <AmbulanceStatus
+                  telemetry={telemetry?.ambulance}
+                  signals={telemetry?.signals}
+                  id={telemetry?.ambulance.id ?? 'AMB-01'}
+                  status={telemetry?.ambulance.status ?? (isConnected ? 'STAGED' : 'DISCONNECTED')}
+                  eta={telemetry ? `${telemetry.ambulance.etaSeconds}s` : '02:41'}
+                  speed={telemetry?.ambulance.speedKmh ?? 42}
+                  distanceToTarget={telemetry?.ambulance.distanceToNextSignal ?? 1800}
+                />
+
+                {/* 2. Signal Interlock Status */}
+                <SignalStatus
+                  signals={telemetry?.signals}
+                />
+
+                {/* 3. Safety Gate (Prominent ResQX Differentiator) */}
+                <SafetyGateCard
+                  safetyValidation={safetyValidation}
+                />
+
+                {/* 4. Police Coordination */}
+                <PoliceCoordinationCard
+                  assignments={policeAssignments}
+                  dispatchedAlerts={dispatchedAlerts}
+                  telemetry={telemetry}
+                />
+
+                {/* 5. AI Decision Engine & Operator Override */}
+                <AIRecommendationCard
+                  recommendation={recommendation}
+                  onExecute={handleExecuteRecommendation}
+                  onDismiss={() => {
+                    const typePrefix =
+                      recommendation.id.split('-')[0] + '-' + recommendation.id.split('-')[1];
+                    setDismissedRecId(typePrefix);
+                  }}
+                />
+
+                {/* 6. Live Sensor Telemetry */}
+                <LiveTelemetryCard
                   telemetry={telemetry}
                   connectionStatus={connectionStatus}
                 />
               </div>
-
-              {/* Mission Event Timeline */}
-              <div className="flex flex-col">
-                <EventTimeline
-                  events={pipelineEvents}
-                  telemetry={telemetry}
-                  isRunning={isRunning}
-                />
-              </div>
-            </div>
-
-            {/* ── RIGHT / SUPPORTING: OPERATIONAL DESK ── */}
-            <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-3.5 min-h-0">
-              {/* 1. Ambulance Status (AMB-01 Main Operational Entity) */}
-              <AmbulanceStatus
-                telemetry={telemetry?.ambulance}
-                signals={telemetry?.signals}
-                id={telemetry?.ambulance.id ?? 'AMB-01'}
-                status={telemetry?.ambulance.status ?? (isConnected ? 'STAGED' : 'DISCONNECTED')}
-                eta={telemetry ? `${telemetry.ambulance.etaSeconds}s` : '02:41'}
-                speed={telemetry?.ambulance.speedKmh ?? 42}
-                distanceToTarget={telemetry?.ambulance.distanceToNextSignal ?? 1800}
-              />
-
-              {/* 2. Signal Interlock Status */}
-              <SignalStatus
-                signals={telemetry?.signals}
-              />
-
-              {/* 3. Safety Gate (Prominent ResQX Differentiator) */}
-              <SafetyGateCard
-                safetyValidation={safetyValidation}
-              />
-
-              {/* 4. Police Coordination */}
-              <PoliceCoordinationCard
-                assignments={policeAssignments}
-                dispatchedAlerts={dispatchedAlerts}
-                telemetry={telemetry}
-              />
-
-              {/* 5. AI Decision Engine & Operator Override */}
-              <AIRecommendationCard
-                recommendation={recommendation}
-                onExecute={handleExecuteRecommendation}
-                onDismiss={() => {
-                  const typePrefix =
-                    recommendation.id.split('-')[0] + '-' + recommendation.id.split('-')[1];
-                  setDismissedRecId(typePrefix);
-                }}
-              />
-
-              {/* 6. Live Sensor Telemetry */}
-              <LiveTelemetryCard
-                telemetry={telemetry}
-                connectionStatus={connectionStatus}
-              />
             </div>
           </div>
         )}

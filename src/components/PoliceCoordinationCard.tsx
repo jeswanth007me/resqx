@@ -115,35 +115,33 @@ export function PoliceCoordinationCard({
               return (
                 <div
                   key={assignment.junctionId}
-                  className="p-2.5 rounded bg-gray-950/70 border border-gray-800/80 flex flex-col gap-1 text-[11px]"
+                  className="p-2 rounded bg-gray-950/70 border border-gray-800/80 flex items-center justify-between gap-2 text-[11px]"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[10px] text-gray-200 bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800">
-                        {assignment.signalId}
-                      </span>
-                      <span className="font-semibold text-gray-200">
-                        {assignment.officerName ?? 'Insp. Rajesh Kumar'}
-                      </span>
-                    </div>
-                    <span className="text-emerald-400 font-bold text-[11px]">
-                      ETA {assignment.etaSeconds}s
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-bold text-[10px] text-gray-200 bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800 shrink-0">
+                      {assignment.signalId}
                     </span>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-gray-200 text-xs truncate">
+                        {assignment.officerName ?? 'Insp. Rajesh Kumar'}
+                      </div>
+                      <div className="text-[9px] text-gray-500 truncate">
+                        {assignment.badgeNumber ? `Badge ${assignment.badgeNumber}` : 'Traffic Officer'} • {assignment.contactIdentifier}
+                      </div>
+                    </div>
                   </div>
 
-                  {assignment.badgeNumber && (
-                    <div className="flex items-center justify-between text-[10px] text-gray-500">
-                      <span>Badge: {assignment.badgeNumber}</span>
-                      <span>{assignment.contactIdentifier}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-1 border-t border-gray-800/60 mt-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                      <Badge variant={badgeVariant} className="text-[9px] py-0 px-1.5">
-                        {statusText}
-                      </Badge>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-col items-end">
+                      <span className="text-emerald-400 font-bold text-[10px] font-mono">
+                        ETA {assignment.etaSeconds}s
+                      </span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        <Badge variant={badgeVariant} className="text-[8px] py-0 px-1 font-bold">
+                          {statusText}
+                        </Badge>
+                      </div>
                     </div>
 
                     {!isAck && assignment.status !== 'UNASSIGNED' && (

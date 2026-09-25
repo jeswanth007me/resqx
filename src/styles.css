@@ -164,3 +164,25 @@
 .animate-pulse-soft {
   animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+@keyframes green-wave-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-green-wave {
+  animation: green-wave-sweep 2.5s ease-in-out infinite;
+}
+
+.transition-state {
+  transition: background-color 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, transform 0.2s ease;
+}

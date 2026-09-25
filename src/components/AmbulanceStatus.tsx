@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Ambulance, Gauge, Clock, Navigation, MapPin } from 'lucide-react';
+import { Ambulance, Gauge, Navigation, MapPin, Activity } from 'lucide-react';
 import type { TelemetryData } from '../types/telemetry';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -110,32 +110,58 @@ export function AmbulanceStatus({
 
         <CardContent className="p-3.5 space-y-3 font-mono">
           {/* Main Hero Entity Banner */}
-          <div className="bg-gray-950/80 border border-gray-800/90 rounded p-3 flex items-center justify-between">
+          <div
+            className={`p-3 rounded border flex items-center justify-between transition-colors ${
+              isStaged
+                ? 'bg-amber-950/20 border-amber-800/40'
+                : isArrived
+                ? 'bg-emerald-950/20 border-emerald-800/40'
+                : 'bg-gray-950/80 border-gray-800/90'
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded bg-red-950/60 border border-red-800/80 flex items-center justify-center shrink-0">
-                <Ambulance className="w-5 h-5 text-red-400" />
+              <div
+                className={`w-11 h-11 rounded flex items-center justify-center shrink-0 border ${
+                  isStaged
+                    ? 'bg-amber-950/60 border-amber-700/60 text-amber-400'
+                    : isArrived
+                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-400'
+                    : 'bg-red-950/60 border-red-800/80 text-red-400'
+                }`}
+              >
+                <Ambulance className="w-5 h-5" />
               </div>
               <div>
                 <span className="text-2xl font-bold tracking-tight text-gray-100 font-headline">
                   {displayId}
                 </span>
-                <span className="text-[10px] text-red-400 font-bold tracking-widest block uppercase mt-0.5">
-                  {displayStatus}
+                <span
+                  className={`text-[10px] font-bold tracking-widest block uppercase mt-0.5 ${
+                    isStaged ? 'text-amber-400' : isArrived ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
+                  {isStaged ? 'STAGED • READY' : displayStatus}
                 </span>
               </div>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wider block">
-                Corridor Speed
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider block">
+                Arrival ETA
               </span>
-              <span className="text-lg font-bold text-gray-100 font-mono">{speedDisplay}</span>
+              <span
+                className={`text-2xl font-bold font-mono tracking-tight ${
+                  isArrived ? 'text-emerald-400' : isStaged ? 'text-gray-400' : 'text-emerald-400'
+                }`}
+              >
+                {etaVal}
+              </span>
             </div>
           </div>
 
-          {/* Clean 2x2 Telemetry Grid */}
+          {/* Clean 2x2 Telemetry Grid (Speed, Next Signal, Distance, Route) */}
           <div className="grid grid-cols-2 gap-2 text-xs">
-            {/* Speed & ETA */}
+            {/* 1. Speed */}
             <div className="bg-gray-950/70 border border-gray-800/80 rounded p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
                 <Gauge className="w-3.5 h-3.5 text-gray-500" />
@@ -144,29 +170,31 @@ export function AmbulanceStatus({
               <span className="font-bold text-gray-100 font-mono">{speedDisplay}</span>
             </div>
 
-            <div className="bg-gray-950/70 border border-gray-800/80 rounded p-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
-                <Clock className="w-3.5 h-3.5 text-gray-500" />
-                <span>ETA:</span>
-              </div>
-              <span className="font-bold text-emerald-400 font-mono">{etaVal}</span>
-            </div>
-
-            {/* Next Signal & Distance */}
+            {/* 2. Next Target Signal */}
             <div className="bg-gray-950/70 border border-gray-800/80 rounded p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
                 <Navigation className="w-3.5 h-3.5 text-gray-500" />
-                <span>Next Sig:</span>
+                <span>Next Target:</span>
               </div>
-              <span className="font-bold text-gray-100 font-mono">{nextSignalId}</span>
+              <span className="font-bold text-emerald-400 font-mono">{nextSignalId}</span>
             </div>
 
+            {/* 3. Distance to Next Signal */}
             <div className="bg-gray-950/70 border border-gray-800/80 rounded p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
                 <MapPin className="w-3.5 h-3.5 text-gray-500" />
-                <span>Dist:</span>
+                <span>Distance:</span>
               </div>
               <span className="font-bold text-gray-100 font-mono">{distToNextVal}</span>
+            </div>
+
+            {/* 4. Active Corridor Route */}
+            <div className="bg-gray-950/70 border border-gray-800/80 rounded p-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-gray-400 text-[11px]">
+                <Activity className="w-3.5 h-3.5 text-gray-500" />
+                <span>Route:</span>
+              </div>
+              <span className="font-bold text-gray-100 font-mono">ROUTE 4A</span>
             </div>
           </div>
 

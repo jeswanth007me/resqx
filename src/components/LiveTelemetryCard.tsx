@@ -13,15 +13,16 @@ export function LiveTelemetryCard({ telemetry, connectionStatus }: LiveTelemetry
   const isConnected = connectionStatus === 'CONNECTED';
   const amb = telemetry?.ambulance;
   const mission = telemetry?.mission;
+  const isStaged = !amb || amb.status === 'STAGED' || amb.speedKmh === 0;
 
-  const speedVal = amb ? `${Math.round(amb.speedKmh)} km/h` : '42 km/h';
+  const speedVal = amb ? `${Math.round(amb.speedKmh)} km/h` : isConnected ? '0 km/h' : '—';
   const distVal = amb
     ? amb.distanceToNextSignal < 1000
       ? `${Math.round(amb.distanceToNextSignal)} m`
       : `${(amb.distanceToNextSignal / 1000).toFixed(1)} km`
-    : '1.8 km';
-  const etaVal = amb ? `${amb.etaSeconds}s` : '02:41';
-  const timeSavedVal = mission ? `+${mission.timeSaved}s` : '+24s';
+    : '—';
+  const etaVal = amb ? `${amb.etaSeconds}s` : '—';
+  const timeSavedVal = mission ? `+${mission.timeSaved}s` : '+0s';
 
   return (
     <Card className="border-gray-800 bg-gray-900/95 flex flex-col justify-between">
@@ -34,8 +35,8 @@ export function LiveTelemetryCard({ telemetry, connectionStatus }: LiveTelemetry
               <span className="text-[10px] text-gray-500 font-mono cursor-help">ⓘ</span>
             </Tooltip>
           </div>
-          <Badge variant={isConnected ? 'success' : 'warning'}>
-            {isConnected ? 'TraCI Sync' : 'Standby'}
+          <Badge variant={!isConnected ? 'warning' : isStaged ? 'secondary' : 'success'}>
+            {!isConnected ? 'Offline' : isStaged ? 'Standby (0 km/h)' : 'TraCI Active'}
           </Badge>
         </CardHeader>
 
@@ -62,8 +63,8 @@ export function LiveTelemetryCard({ telemetry, connectionStatus }: LiveTelemetry
 
           <div className="pt-1.5 flex items-center justify-between">
             <span className="text-gray-400">SUMO Vehicle Status</span>
-            <span className="text-gray-300 font-semibold">
-              {amb?.status ?? 'STAGED'}
+            <span className={`font-semibold ${isStaged ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {amb?.status ?? (isConnected ? 'STAGED' : 'DISCONNECTED')}
             </span>
           </div>
         </CardContent>

@@ -688,22 +688,6 @@ export function TacticalCommandView2D({
             </div>
           </div>
         )}
-
-        {/* ── 4. CORRIDOR PROGRESSION INDICATOR (FLOATING BOTTOM RIGHT) ── */}
-        <div className="absolute bottom-2.5 right-2.5 bg-gray-900/95 border border-gray-800 rounded px-3 py-1.5 z-30 font-mono text-[10px] shadow-xl backdrop-blur-md flex items-center gap-2">
-          <span className="text-gray-500 uppercase font-bold text-[9px]">Corridor:</span>
-          <span className="font-bold text-red-400">AMB-01</span>
-          <span className="text-gray-600">→</span>
-          <span className="font-bold text-emerald-400">SIG-01</span>
-          <span className="text-gray-600">→</span>
-          <span className="font-bold text-emerald-400">SIG-02</span>
-          <span className="text-gray-600">→</span>
-          <span className="font-bold text-emerald-400">SIG-03</span>
-          <span className="text-gray-600">→</span>
-          <span className="font-bold text-emerald-400">SIG-04</span>
-          <span className="text-gray-600">→</span>
-          <span className="font-bold text-red-400">HOSPITAL</span>
-        </div>
       </div>
     </div>
   );
