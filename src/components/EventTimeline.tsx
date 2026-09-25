@@ -1,5 +1,21 @@
+import {
+  Clock,
+  CheckCircle2,
+  Radio,
+  ShieldCheck,
+  ShieldAlert,
+  TrafficCone,
+  BrainCircuit,
+  Hospital,
+  Bell,
+  Activity,
+  Ambulance,
+} from 'lucide-react';
 import type { EmergencyEvent } from '../types/events';
 import type { TelemetryData } from '../types/telemetry';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Tooltip } from './ui/tooltip';
 
 interface EventTimelineProps {
   events: EmergencyEvent[];
@@ -7,12 +23,29 @@ interface EventTimelineProps {
   isRunning?: boolean;
 }
 
-const severityTag: Record<EmergencyEvent['severity'], { color: string; bg: string }> = {
-  SUCCESS: { color: 'text-[#38a169]', bg: 'bg-[#38a169]/15 border-[#38a169]/30' },
-  INFO: { color: 'text-[#A3A3A3]', bg: 'bg-[#1e1e1e] border-[#2a2a2a]' },
-  WARNING: { color: 'text-[#d97706]', bg: 'bg-[#d97706]/15 border-[#d97706]/30' },
-  CRITICAL: { color: 'text-[#d04848]', bg: 'bg-[#d04848]/15 border-[#d04848]/30' },
+const severityConfig: Record<
+  EmergencyEvent['severity'],
+  { badgeVariant: 'success' | 'warning' | 'destructive' | 'info'; textClass: string }
+> = {
+  SUCCESS: { badgeVariant: 'success', textClass: 'text-emerald-400' },
+  INFO: { badgeVariant: 'info', textClass: 'text-gray-300' },
+  WARNING: { badgeVariant: 'warning', textClass: 'text-amber-400' },
+  CRITICAL: { badgeVariant: 'destructive', textClass: 'text-rose-400' },
 };
+
+function getEventIcon(type: EmergencyEvent['type']) {
+  if (type.includes('SAFETY_APPROVED')) return ShieldCheck;
+  if (type.includes('SAFETY_BLOCKED')) return ShieldAlert;
+  if (type.includes('EMERGENCY_DETECTED')) return Ambulance;
+  if (type.includes('SIGNAL_PRIORITY')) return TrafficCone;
+  if (type.includes('SIGNAL_PREPARING')) return Clock;
+  if (type.includes('SIGNAL_RESTORED')) return CheckCircle2;
+  if (type.includes('POLICE_ALERT')) return Bell;
+  if (type.includes('POLICE')) return Radio;
+  if (type.includes('AI') || type.includes('DECISION')) return BrainCircuit;
+  if (type.includes('MISSION_COMPLETE')) return Hospital;
+  return Activity;
+}
 
 function formatSimTime(timestamp: number): string {
   const m = Math.floor(timestamp / 60);
@@ -21,7 +54,7 @@ function formatSimTime(timestamp: number): string {
 }
 
 export function EventTimeline({ events, telemetry = null, isRunning = false }: EventTimelineProps) {
-  const displayEvents = events.slice(0, 6);
+  const displayEvents = events.slice(0, 8);
 
   // Derive the rail from live telemetry only — no hard-coded future timestamps.
   const sigState = (id: string): string => {
@@ -37,14 +70,11 @@ export function EventTimeline({ events, telemetry = null, isRunning = false }: E
   // Each signal is "done" once SUMO reports it RESTORED, otherwise pending/active.
   const sigDone = (id: string): boolean => sigState(id) === 'RESTORED';
 
-  // The "currently active" signal is the first non-done signal in corridor order.
   const corridor = ['SIG-01', 'SIG-02', 'SIG-03', 'SIG-04'];
   const activeSigIndex = isArrived
     ? -1
     : corridor.findIndex((id) => !sigDone(id));
 
-  // Init gates: Dispatch, Route Calc, Safety Gate are completed at mission start
-  // (isRunning OR AMB-01 is en-route) and stay pending otherwise.
   const initialized = isRunning || isEnRoute;
   const dispatchDone = initialized;
   const routeCalcDone = initialized;
@@ -55,8 +85,6 @@ export function EventTimeline({ events, telemetry = null, isRunning = false }: E
   const sig3Done = sigDone('SIG-03');
   const sig4Done = sigDone('SIG-04');
 
-  // Active step: priority is the first unfinished step, in the required order.
-  // Hospital becomes done only when AMB-01 actually arrives.
   type Step = { label: string; done: boolean; active: boolean };
   const steps: Step[] = [
     { label: 'Dispatch', done: dispatchDone, active: false },
@@ -69,14 +97,9 @@ export function EventTimeline({ events, telemetry = null, isRunning = false }: E
     { label: 'Hospital', done: isArrived, active: false },
   ];
 
-  // If no signal is active and we are en-route but not yet at Hospital, that means
-  // we're between signals — keep the next-pending signal visually "active" so the
-  // rail does not freeze. (Already handled by activeSigIndex for non-done signals.)
-
   const completedCount = steps.filter((s) => s.done).length;
   const activeCount = steps.filter((s) => s.active).length;
   const totalSlots = steps.length;
-  // Rail highlight grows with done+active steps. When fully arrived, 100%.
   const progressRatio = isArrived
     ? 1
     : Math.min(1, (completedCount + activeCount) / totalSlots);
@@ -94,98 +117,142 @@ export function EventTimeline({ events, telemetry = null, isRunning = false }: E
   };
 
   return (
-    <div className="bg-[#171717] border border-[#242424] rounded p-4 flex flex-col gap-3 select-none">
-      <div className="flex items-center justify-between pb-2 border-b border-[#242424]">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px] text-[#A3A3A3]">timeline</span>
-          <span className="font-mono text-[11px] uppercase font-bold tracking-widest text-[#F5F5F5]">
-            MISSION EVENT TIMELINE
-          </span>
-        </div>
-        <span className="font-mono text-[10px] text-[#38a169] font-semibold">
-          {isArrived ? 'MISSION COMPLETE' : isRunning || isEnRoute ? 'ACTIVE CORRIDOR EXECUTION' : 'STAGED'}
-        </span>
-      </div>
+    <Card className="border-gray-800 bg-gray-900/95 flex flex-col justify-between">
+      <div>
+        <CardHeader className="py-2.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-emerald-400" />
+            <CardTitle className="text-gray-100">Mission Event Timeline</CardTitle>
+            <Tooltip content="Real-time corridor progression and state-transition audit log">
+              <span className="text-[10px] text-gray-500 font-mono cursor-help">ⓘ</span>
+            </Tooltip>
+          </div>
+          <Badge
+            variant={
+              isArrived
+                ? 'success'
+                : isRunning || isEnRoute
+                ? 'default'
+                : 'muted'
+            }
+          >
+            {isArrived
+              ? 'Mission Complete'
+              : isRunning || isEnRoute
+              ? 'Corridor Executing'
+              : 'Staged'}
+          </Badge>
+        </CardHeader>
 
-      {/* ── HORIZONTAL MILESTONE PROGRESSION RAIL ── */}
-      <div className="w-full overflow-x-auto py-1">
-        <div className="min-w-[720px] flex items-center justify-between relative px-4">
-          {/* Background Rail */}
-          <div className="absolute left-6 right-6 top-3 h-[2px] bg-[#242424]" />
-          {/* Active Highlight Line — grows with live progress */}
-          <div
-            className="absolute left-6 top-3 h-[2px] bg-[#38a169] transition-all"
-            style={{ width: `calc((100% - 3rem) * ${progressRatio})` }}
-          />
-
-          {/* Steps */}
-          {steps.map((step, idx) => {
-            const isDone = step.done;
-            const isActive = step.active;
-
-            return (
-              <div key={idx} className="flex flex-col items-center text-center z-10">
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold ${
-                    isActive
-                      ? 'bg-[#d04848] text-white ring-4 ring-[#d04848]/25 animate-pulse'
-                      : isDone
-                      ? 'bg-[#38a169] text-[#111111]'
-                      : 'bg-[#1e1e1e] border border-[#333333] text-[#737373]'
-                  }`}
-                >
-                  {isDone ? (
-                    <span className="material-symbols-outlined text-[13px]">check</span>
-                  ) : isActive ? (
-                    <span className="w-2 h-2 rounded-full bg-white" />
-                  ) : (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#555555]" />
-                  )}
-                </div>
-                <span
-                  className={`font-mono text-[9px] mt-1.5 ${
-                    isActive ? 'text-[#d04848] font-bold' : isDone ? 'text-[#38a169]' : 'text-[#737373]'
-                  }`}
-                >
-                  {stepTime(step.label, idx)}
-                </span>
-                <span
-                  className={`font-mono text-[10px] font-medium ${
-                    isActive ? 'text-[#F5F5F5] font-bold' : isDone ? 'text-[#F5F5F5]' : 'text-[#737373]'
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── RECENT LIVE TRANSITION AUDIT LOG (CLEAN MONOSPACE ROWS) ── */}
-      {displayEvents.length > 0 && (
-        <div className="mt-1 flex flex-col gap-1.5 border-t border-[#242424] pt-2">
-          {displayEvents.map((evt) => {
-            const tag = severityTag[evt.severity] ?? severityTag.INFO;
-            return (
+        <CardContent className="p-3.5 space-y-3 font-mono">
+          {/* Horizontal Milestone Progression Rail */}
+          <div className="w-full overflow-x-auto py-1">
+            <div className="min-w-[620px] flex items-center justify-between relative px-4">
+              {/* Background Rail */}
+              <div className="absolute left-6 right-6 top-3 h-[2px] bg-gray-800" />
+              {/* Active Highlight Line */}
               <div
-                key={evt.id}
-                className="flex items-center justify-between bg-[#141414] border border-[#1e1e1e] px-2.5 py-1.5 rounded font-mono text-[11px]"
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <span className="text-[#737373] text-[10px] shrink-0 font-medium">
-                    {formatSimTime(evt.timestamp)}
-                  </span>
-                  <span className="text-[#F5F5F5] truncate text-[11px]">{evt.description}</span>
-                </div>
-                <span className={`px-1.5 py-0.5 rounded border text-[9px] font-bold shrink-0 ml-2 ${tag.bg} ${tag.color}`}>
-                  {evt.type.replace(/_/g, ' ')}
-                </span>
+                className="absolute left-6 top-3 h-[2px] bg-emerald-500 transition-all duration-300"
+                style={{ width: `calc((100% - 3rem) * ${progressRatio})` }}
+              />
+
+              {/* Steps */}
+              {steps.map((step, idx) => {
+                const isDone = step.done;
+                const isActive = step.active;
+
+                return (
+                  <div key={idx} className="flex flex-col items-center text-center z-10">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                        isActive
+                          ? 'bg-red-600 text-white ring-4 ring-red-500/30 animate-pulse'
+                          : isDone
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-gray-800 border border-gray-700 text-gray-500'
+                      }`}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : isActive ? (
+                        <span className="w-2 h-2 rounded-full bg-white" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                      )}
+                    </div>
+                    <span
+                      className={`text-[9px] mt-1 ${
+                        isActive
+                          ? 'text-red-400 font-bold'
+                          : isDone
+                          ? 'text-emerald-400'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {stepTime(step.label, idx)}
+                    </span>
+                    <span
+                      className={`text-[10px] font-medium ${
+                        isActive
+                          ? 'text-gray-100 font-bold'
+                          : isDone
+                          ? 'text-gray-200'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Event Audit Log */}
+          <div>
+            <div className="flex items-center justify-between text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">
+              <span>Transition Audit Log</span>
+              <span className="text-gray-400">Latest {displayEvents.length} Events</span>
+            </div>
+
+            {displayEvents.length === 0 ? (
+              <div className="text-xs text-gray-500 py-3 text-center bg-gray-950/50 rounded border border-gray-800/80">
+                Awaiting mission activation events...
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            ) : (
+              <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-0.5">
+                {displayEvents.map((evt) => {
+                  const cfg = severityConfig[evt.severity] ?? severityConfig.INFO;
+                  const Icon = getEventIcon(evt.type);
+
+                  return (
+                    <div
+                      key={evt.id}
+                      className="flex items-center justify-between bg-gray-950/70 border border-gray-800/80 px-2.5 py-1.5 rounded text-[11px] hover:border-gray-700/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 truncate pr-2">
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${cfg.textClass}`} />
+                        <span className="text-gray-500 text-[10px] shrink-0 font-medium">
+                          {formatSimTime(evt.timestamp)}
+                        </span>
+                        <span className="text-gray-200 truncate">{evt.description}</span>
+                      </div>
+                      <Badge variant={cfg.badgeVariant} className="text-[9px] shrink-0">
+                        {evt.type.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </div>
+
+      <div className="p-3.5 pt-0 text-[10px] font-mono text-gray-500 border-t border-gray-800/60 mt-1 flex items-center justify-between">
+        <span>Deterministic Audit Trail</span>
+        <span className="text-emerald-400 font-semibold">Zero-Tick Duplication Guard</span>
+      </div>
+    </Card>
   );
 }

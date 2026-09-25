@@ -1,14 +1,19 @@
 /**
  * ResQX Traffic Police Coordination & Emergency Alert Card
  *
- * Operational UI displaying junction officer assignments, ETA countdowns,
+ * Operational EOC card displaying junction officer assignments, ETA countdowns,
  * real-time alert dispatch states, and manual acknowledgement verification.
  */
 
 import { useState } from 'react';
+import { Radio } from 'lucide-react';
 import type { JunctionAssignment, EmergencyAlert } from '../types/police';
 import { getAlertService } from '../services/alertService';
 import type { DispatchedAlertRecord } from '../App';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Tooltip } from './ui/tooltip';
 
 interface PoliceCoordinationCardProps {
   assignments?: JunctionAssignment[];
@@ -35,104 +40,134 @@ export function PoliceCoordinationCard({
   };
 
   return (
-    <div className="bg-[#171717] border border-[#242424] rounded p-4 flex flex-col select-none">
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#242424]">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px] text-[#38a169]">local_police</span>
-          <span className="font-mono text-[11px] font-bold tracking-widest text-[#F5F5F5] uppercase">
-            POLICE JUNCTION DISPATCH
-          </span>
-        </div>
-        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border bg-[#38a169]/15 text-[#38a169] border-[#38a169]/30">
-          NTFY 4-JUNCTION DISPATCH
-        </span>
-      </div>
+    <Card className="border-gray-800 bg-gray-900/95 flex flex-col justify-between">
+      <div>
+        <CardHeader className="py-2.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-emerald-400" />
+            <CardTitle className="text-gray-100">Police Coordination</CardTitle>
+            <Tooltip content="Junction traffic officer assignments & live ntfy emergency dispatch">
+              <span className="text-[10px] text-gray-500 font-mono cursor-help">ⓘ</span>
+            </Tooltip>
+          </div>
+          <Badge variant="info">
+            ntfy Active
+          </Badge>
+        </CardHeader>
 
-      <div className="flex flex-col gap-2">
-        {assignments.map((assignment) => {
-          const alert = alerts.find((a) => a.junctionId === assignment.junctionId || a.signalId === assignment.signalId);
-          const alertId = alert?.alertId ?? `ALERT-${assignment.signalId}`;
-          const isAck = acknowledgedSet.has(alertId) || acknowledgedSet.has(assignment.junctionId) || alert?.status === 'ACKNOWLEDGED';
-          const sigTelemetry = telemetry?.signals.find((s) => s.id === assignment.signalId);
-          const sigState = sigTelemetry?.emergencyState;
-          const hasAlertRecord = dispatchedAlerts.some((a) => a.signalId === assignment.signalId);
-          const isPriority = sigState === 'EMERGENCY PRIORITY' || sigState === 'PRIORITY' || sigState === 'PASSING';
-          const isPreparing = sigState === 'PREPARING';
-          const isRestored = sigState === 'RESTORED' || sigState === 'RESTORING';
-
-          const statusText = isAck
-            ? 'ACKNOWLEDGED'
-            : assignment.status === 'UNASSIGNED'
-            ? 'NO OFFICER'
-            : hasAlertRecord
-            ? 'NTFY ALERT DISPATCHED'
-            : isPriority
-            ? 'PRIORITY ACTIVE'
-            : isPreparing
-            ? 'PREPARING'
-            : isRestored
-            ? 'RESTORED'
-            : 'STANDBY';
-
-          const dotColor = isAck
-            ? 'bg-[#38a169]'
-            : assignment.status === 'UNASSIGNED'
-            ? 'bg-[#d04848]'
-            : hasAlertRecord || isPriority
-            ? 'bg-[#38a169] animate-pulse shadow-[0_0_6px_#38a169]'
-            : isPreparing
-            ? 'bg-[#d97706] animate-pulse shadow-[0_0_6px_#d97706]'
-            : isRestored
-            ? 'bg-[#06b6d4]'
-            : 'bg-[#737373]';
-
-          return (
-            <div
-              key={assignment.junctionId}
-              className="p-2.5 rounded bg-[#141414] border border-[#1e1e1e] flex flex-col gap-1 font-mono text-[11px]"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-[10px] text-[#F5F5F5] bg-[#222222] px-1.5 py-0.5 rounded border border-[#333333]">
-                    {assignment.signalId}
-                  </span>
-                  <span className="text-[11px] font-semibold text-[#F5F5F5]">
-                    {assignment.officerName ?? 'Insp. Rajesh Kumar'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-[#38a169] font-bold">
-                  ETA {assignment.etaSeconds}s
-                </span>
-              </div>
-
-              {assignment.badgeNumber && (
-                <div className="flex items-center justify-between text-[10px] text-[#737373]">
-                  <span>{assignment.badgeNumber}</span>
-                  <span>{assignment.contactIdentifier}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-1 border-t border-[#1e1e1e] text-[10px]">
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                  <span className="font-bold text-[#A3A3A3]">
-                    {statusText}
-                  </span>
-                </div>
-
-                {!isAck && assignment.status !== 'UNASSIGNED' && (
-                  <button
-                    onClick={() => handleAcknowledge(alertId, assignment.junctionId)}
-                    className="text-[9px] px-2 py-0.5 rounded bg-[#38a169]/15 text-[#38a169] hover:bg-[#38a169]/25 border border-[#38a169]/30 transition-colors cursor-pointer"
-                  >
-                    Ack
-                  </button>
-                )}
-              </div>
+        <CardContent className="p-3.5 space-y-2 font-mono">
+          {assignments.length === 0 ? (
+            <div className="text-xs text-gray-500 py-3 text-center">
+              Awaiting corridor officer assignments...
             </div>
-          );
-        })}
+          ) : (
+            assignments.map((assignment) => {
+              const alert = alerts.find(
+                (a) => a.junctionId === assignment.junctionId || a.signalId === assignment.signalId
+              );
+              const alertId = alert?.alertId ?? `ALERT-${assignment.signalId}`;
+              const isAck =
+                acknowledgedSet.has(alertId) ||
+                acknowledgedSet.has(assignment.junctionId) ||
+                alert?.status === 'ACKNOWLEDGED';
+              const sigTelemetry = telemetry?.signals.find((s) => s.id === assignment.signalId);
+              const sigState = sigTelemetry?.emergencyState;
+              const hasAlertRecord = dispatchedAlerts.some((a) => a.signalId === assignment.signalId);
+              const isPriority =
+                sigState === 'EMERGENCY PRIORITY' || sigState === 'PRIORITY' || sigState === 'PASSING';
+              const isPreparing = sigState === 'PREPARING';
+              const isRestored = sigState === 'RESTORED' || sigState === 'RESTORING';
+
+              const statusText = isAck
+                ? 'ACKNOWLEDGED'
+                : assignment.status === 'UNASSIGNED'
+                ? 'NO OFFICER'
+                : hasAlertRecord
+                ? 'NTFY DISPATCHED'
+                : isPriority
+                ? 'PRIORITY ACTIVE'
+                : isPreparing
+                ? 'PREPARING'
+                : isRestored
+                ? 'RESTORED'
+                : 'STANDBY';
+
+              let badgeVariant: 'success' | 'warning' | 'info' | 'destructive' | 'muted' = 'muted';
+              let dotColor = 'bg-gray-600';
+
+              if (isAck) {
+                badgeVariant = 'success';
+                dotColor = 'bg-emerald-400';
+              } else if (assignment.status === 'UNASSIGNED') {
+                badgeVariant = 'destructive';
+                dotColor = 'bg-red-400';
+              } else if (hasAlertRecord || isPriority) {
+                badgeVariant = 'success';
+                dotColor = 'bg-emerald-400 animate-pulse';
+              } else if (isPreparing) {
+                badgeVariant = 'warning';
+                dotColor = 'bg-amber-400 animate-pulse';
+              } else if (isRestored) {
+                badgeVariant = 'info';
+                dotColor = 'bg-sky-400';
+              }
+
+              return (
+                <div
+                  key={assignment.junctionId}
+                  className="p-2.5 rounded bg-gray-950/70 border border-gray-800/80 flex flex-col gap-1 text-[11px]"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[10px] text-gray-200 bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800">
+                        {assignment.signalId}
+                      </span>
+                      <span className="font-semibold text-gray-200">
+                        {assignment.officerName ?? 'Insp. Rajesh Kumar'}
+                      </span>
+                    </div>
+                    <span className="text-emerald-400 font-bold text-[11px]">
+                      ETA {assignment.etaSeconds}s
+                    </span>
+                  </div>
+
+                  {assignment.badgeNumber && (
+                    <div className="flex items-center justify-between text-[10px] text-gray-500">
+                      <span>Badge: {assignment.badgeNumber}</span>
+                      <span>{assignment.contactIdentifier}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-800/60 mt-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                      <Badge variant={badgeVariant} className="text-[9px] py-0 px-1.5">
+                        {statusText}
+                      </Badge>
+                    </div>
+
+                    {!isAck && assignment.status !== 'UNASSIGNED' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAcknowledge(alertId, assignment.junctionId)}
+                        className="h-5 px-2 text-[9px] text-emerald-400 border-emerald-800/60 hover:bg-emerald-950/30"
+                      >
+                        Ack
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
       </div>
-    </div>
+
+      <div className="p-3.5 pt-0 text-[10px] font-mono text-gray-500 border-t border-gray-800/60 mt-1 flex items-center justify-between">
+        <span>Junction Officer Deployment</span>
+        <span className="text-emerald-400 font-semibold">Realtime Dispatch</span>
+      </div>
+    </Card>
   );
 }

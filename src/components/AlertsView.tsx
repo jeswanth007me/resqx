@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { CheckCircle2, RefreshCw, Clock, TrafficCone, ShieldCheck } from 'lucide-react';
 import type { TelemetryData } from '../types/telemetry';
 import type { JunctionAssignment } from '../types/police';
 import type { EmergencyEvent } from '../types/events';
@@ -232,10 +233,14 @@ export function AlertsView({
                     </p>
 
                     <div className="flex items-center justify-between pt-1 border-t border-[#242424] text-[10px]">
-                      <span className={`flex items-center gap-1 font-bold ${accentColor}`}>
-                        <span className="material-symbols-outlined text-[12px]">
-                          {isAlertSent ? 'check_circle' : isLive ? 'sync' : 'schedule'}
-                        </span>
+                      <span className={`flex items-center gap-1.5 font-bold ${accentColor}`}>
+                        {isAlertSent ? (
+                          <CheckCircle2 className="w-3 h-3" />
+                        ) : isLive ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
                         {liveState === 'ALERT SENT'
                           ? `NTFY ${alertStatus} (${j.phoneLabel})`
                           : isPriority
@@ -348,7 +353,7 @@ export function AlertsView({
           <div className="bg-[#171717] border border-[#242424] rounded p-3 shrink-0 flex flex-col gap-2 shadow-sm">
             <div className="flex items-center justify-between pb-1.5 border-b border-[#242424]">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-[#d97706]">traffic</span>
+                <TrafficCone className="w-4 h-4 text-amber-400" />
                 <h2 className="font-headline font-bold text-[#F5F5F5] text-xs">
                   Dynamic Roadside Signage (DMS) Preview
                 </h2>
@@ -401,7 +406,7 @@ export function AlertsView({
             </div>
             <div className="bg-[#111111] border border-[#38a169]/30 rounded p-2 flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-full bg-[#38a169]/15 border border-[#38a169]/40 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-[16px] text-[#38a169]">security</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
               </div>
               <div>
                 <div className="font-bold text-[#F5F5F5] text-[11px]">No Intersecting Preemptions</div>

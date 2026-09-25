@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Volume2, VolumeX, Crosshair, Map, Box } from 'lucide-react';
 import type { TelemetryData } from '../types/telemetry';
 import type { ConnectionStatus } from '../telemetry/useResQXTelemetry';
 import { sirenAudio } from '../utils/sirenAudio';
@@ -51,81 +52,82 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
   return (
     <div
       ref={containerRef}
-      className="flex-1 relative bg-[#171717] overflow-hidden rounded border border-[#242424] flex flex-col justify-between select-none min-h-[460px]"
+      className="flex-1 relative bg-gray-900 border border-gray-800 rounded overflow-hidden flex flex-col justify-between select-none min-h-[460px] shadow-sm"
     >
       {/* ── TOP HEADER CONTROLS BAR ─────────────────────────────────── */}
-      <div className="h-10 px-4 bg-[#141414] border-b border-[#242424] flex items-center justify-between z-30 shrink-0">
+      <div className="h-10 px-4 bg-gray-950/90 border-b border-gray-800 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] font-bold tracking-widest text-[#F5F5F5] uppercase">
-            CORRIDOR DIGITAL TWIN
+          <span className="font-mono text-xs font-bold tracking-widest text-gray-100 uppercase flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Corridor Digital Twin
           </span>
-          <span className="font-mono text-[10px] text-[#737373] hidden sm:inline">
-            LIVE URBAN TRAFFIC REPLICATION
+          <span className="font-mono text-[10px] text-gray-500 hidden sm:inline">
+            Tactical Urban Traffic Replication
           </span>
         </div>
 
         {/* View Mode Switcher + Audio + Camera Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 font-mono">
           {/* 2D vs 3D Toggle */}
-          <div className="flex items-center bg-[#1e1e1e] p-0.5 rounded border border-[#2a2a2a]">
+          <div className="flex items-center bg-gray-950 p-0.5 rounded border border-gray-800">
             <button
               onClick={() => setViewMode('2D')}
-              className={`px-3 py-0.5 rounded font-mono text-[11px] transition-colors cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded text-[11px] transition-colors cursor-pointer font-bold flex items-center gap-1 ${
                 viewMode === '2D'
-                  ? 'bg-[#111111] text-[#F5F5F5] font-bold shadow-xs border border-[#333333]'
-                  : 'text-[#737373] hover:text-[#F5F5F5]'
+                  ? 'bg-gray-800 text-gray-100 shadow-xs border border-gray-700'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              2D MAP
+              <Map className="w-3 h-3" />
+              2D Tactical
             </button>
             <button
               onClick={() => setViewMode('3D')}
-              className={`px-3 py-0.5 rounded font-mono text-[11px] transition-colors cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded text-[11px] transition-colors cursor-pointer font-bold flex items-center gap-1 ${
                 viewMode === '3D'
-                  ? 'bg-[#111111] text-[#F5F5F5] font-bold shadow-xs border border-[#333333]'
-                  : 'text-[#737373] hover:text-[#F5F5F5]'
+                  ? 'bg-gray-800 text-gray-100 shadow-xs border border-gray-700'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              3D TWIN
+              <Box className="w-3 h-3" />
+              3D Twin
             </button>
           </div>
 
-          <div className="h-3.5 w-px bg-[#262626]" />
+          <div className="h-3.5 w-px bg-gray-800" />
 
           {/* Audio Siren Toggle */}
           <button
             onClick={handleToggleAudio}
             className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer border ${
               !isMuted
-                ? 'bg-[#d04848]/20 border-[#d04848] text-[#d04848] animate-pulse'
-                : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#737373] hover:text-[#F5F5F5]'
+                ? 'bg-red-950/60 border-red-700 text-red-400 animate-pulse'
+                : 'bg-gray-950 border-gray-800 text-gray-500 hover:text-gray-300'
             }`}
             title={!isMuted ? 'Mute emergency siren' : 'Unmute emergency siren'}
           >
-            <span className="material-symbols-outlined text-[15px]">
-              {!isMuted ? 'volume_up' : 'volume_off'}
-            </span>
+            {!isMuted ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
           </button>
 
           {/* 3D Follow Cam Toggle */}
           {viewMode === '3D' && (
             <button
               onClick={() => setFollowAmbulance(!followAmbulance)}
-              className={`px-2 py-0.5 rounded font-mono text-[10px] font-semibold border transition-colors cursor-pointer flex items-center gap-1 ${
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer flex items-center gap-1 ${
                 followAmbulance
-                  ? 'bg-[#38a169]/15 border-[#38a169]/40 text-[#38a169]'
-                  : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#737373] hover:text-[#F5F5F5]'
+                  ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400'
+                  : 'bg-gray-950 border-gray-800 text-gray-500 hover:text-gray-300'
               }`}
             >
-              <span className="material-symbols-outlined text-[12px]">my_location</span>
-              {followAmbulance ? 'LOCK AMB' : 'FREE CAM'}
+              <Crosshair className="w-3 h-3" />
+              {followAmbulance ? 'Lock Amb' : 'Free Cam'}
             </button>
           )}
         </div>
       </div>
 
       {/* ── VIEWPORT CANVAS (2D Tactical Map by default, 3D WebGL optionally) ── */}
-      <div className="relative flex-1 w-full h-full bg-[#0c0c0c] overflow-hidden flex items-center justify-center">
+      <div className="relative flex-1 w-full h-full bg-[#0a0d14] overflow-hidden flex items-center justify-center">
         {viewMode === '2D' ? (
           <TacticalCommandView2D
             telemetry={telemetry}
@@ -141,15 +143,15 @@ export function SimulationViewport({ telemetry, connectionStatus }: SimulationVi
       </div>
 
       {/* ── BOTTOM FOOTNOTE TELEMETRY OVERLAY ── */}
-      <div className="h-7 px-4 bg-[#141414] border-t border-[#242424] flex items-center justify-between text-[#737373] font-mono text-[10px] shrink-0">
+      <div className="h-7 px-4 bg-gray-950/90 border-t border-gray-800 flex items-center justify-between text-gray-500 font-mono text-[10px] shrink-0">
         <div className="flex items-center gap-4">
           <span>GRID: RES-100m</span>
           <span>CORRIDOR: 4-LANE ARTERIAL (4 JUNCTIONS)</span>
           <span className="hidden sm:inline">SPEED LIMIT: 60 KM/H</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[#38a169]' : 'bg-[#d97706]'}`} />
-          <span className={isConnected ? 'text-[#38a169] font-semibold' : 'text-[#d97706]'}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          <span className={isConnected ? 'text-emerald-400 font-semibold' : 'text-amber-400'}>
             {isConnected ? 'TraCI HARD SYNC' : 'SIMULATOR ACTIVE'}
           </span>
         </div>

@@ -6,6 +6,7 @@ import { SimulationViewport } from './components/SimulationViewport';
 import { AmbulanceStatus } from './components/AmbulanceStatus';
 import { LiveTelemetryCard } from './components/LiveTelemetryCard';
 import { SignalStatus } from './components/SignalStatus';
+import { SafetyGateCard } from './components/SafetyGateCard';
 import { EventTimeline } from './components/EventTimeline';
 import { AIRecommendationCard } from './components/AIRecommendationCard';
 import { PoliceCoordinationCard } from './components/PoliceCoordinationCard';
@@ -427,17 +428,23 @@ function App() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#111111] font-body text-[#F5F5F5] flex flex-col justify-between select-none">
-      {/* ── 1. HEADER (STITCH EOC CHROME) ── */}
+    <div className="w-full min-h-screen bg-gray-950 font-body text-gray-100 flex flex-col justify-between select-none">
+      {/* ── 1. COMMAND CENTER HEADER ── */}
       <AppHeader
         activeTab={activeTab}
         simulationTime={simulationTime}
         connectionStatus={connectionStatus}
         onTabChange={setActiveTab}
+        isRunning={isRunning}
+        onStart={handleStart}
+        onPause={handlePause}
+        onReset={handleReset}
+        speed={simSpeed}
+        onSpeedChange={handleSpeedChange}
       />
 
       {/* ── 2. MAIN OPERATIONAL WORKSPACE (VIEW SWITCHER) ── */}
-      <main className="flex-1 px-3 sm:px-4 py-3 flex flex-col gap-3 w-full max-w-[1920px] mx-auto min-h-0">
+      <main className="flex-1 px-3 sm:px-4 py-3.5 flex flex-col gap-3.5 w-full max-w-[1920px] mx-auto min-h-0">
         {activeTab === 'signals' ? (
           <SignalControlView
             telemetry={telemetry}
@@ -465,116 +472,74 @@ function App() {
             onResetCorridor={handleReset}
           />
         ) : (
-          /* PRIMARY VIEW: LIVE MONITOR */
-          <div className="flex-1 flex flex-col gap-3 min-h-0">
-            {/* UPPER TIER: 3-COLUMN PRIMARY GRID (CENTER EXPANDED TO 58%) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
-              {/* LEFT COLUMN: ACTIVE EMERGENCY HERO PANEL (~22% -> col-span-12 lg:col-span-3) */}
-              <div className="lg:col-span-3 flex flex-col">
-                <AmbulanceStatus
-                  telemetry={telemetry?.ambulance}
-                  signals={telemetry?.signals}
-                  id={telemetry?.ambulance.id ?? 'AMB-01'}
-                  status={telemetry?.ambulance.status ?? (isConnected ? 'STAGED' : 'DISCONNECTED')}
-                  eta={telemetry ? `${telemetry.ambulance.etaSeconds}s` : '02:41'}
-                  speed={telemetry?.ambulance.speedKmh ?? 42}
-                  distanceToTarget={telemetry?.ambulance.distanceToNextSignal ?? 1800}
-                />
-              </div>
-
-              {/* CENTER: DIGITAL TWIN / 2D TACTICAL VECTOR CORRIDOR (56% -> col-span-12 lg:col-span-6) */}
-              <div className="lg:col-span-6 flex flex-col min-h-[460px]">
+          /* PRIMARY VIEW: TWO-COLUMN COMMAND CENTER LAYOUT */
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start min-h-0">
+            {/* ── LEFT / PRIMARY: DIGITAL TWIN & MISSION TIMELINE ── */}
+            <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3.5 min-h-0">
+              {/* Tactical Digital Twin Viewport */}
+              <div className="flex flex-col min-h-[480px]">
                 <SimulationViewport
                   telemetry={telemetry}
                   connectionStatus={connectionStatus}
                 />
               </div>
 
-              {/* RIGHT FLANK: LIVE TELEMETRY & TRAFFIC SIGNALS (~22% -> col-span-12 lg:col-span-3) */}
-              <div className="lg:col-span-3 flex flex-col gap-3">
-                <LiveTelemetryCard
+              {/* Mission Event Timeline */}
+              <div className="flex flex-col">
+                <EventTimeline
+                  events={pipelineEvents}
                   telemetry={telemetry}
-                  connectionStatus={connectionStatus}
-                />
-                <SignalStatus
-                  signals={telemetry?.signals}
+                  isRunning={isRunning}
                 />
               </div>
             </div>
 
-            {/* LOWER SECTION: 3 STATUS BLOCKS + EVENT TIMELINE + DECISION ENGINE */}
-            <div className="flex flex-col gap-3 w-full">
-              {/* THREE MINIMAL STATUS BLOCKS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* BLOCK 1: DECISION */}
-                <div className="bg-[#171717] border border-[#242424] rounded p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#737373] block">
-                      CORRIDOR DECISION
-                    </span>
-                    <span className="font-headline font-bold text-[17px] text-[#F5F5F5]">
-                      {safetyValidation?.decision === 'APPROVED' ? 'APPROVED' : 'MONITORING'}
-                    </span>
-                  </div>
-                  <span className="px-2.5 py-1 rounded bg-[#38a169]/15 border border-[#38a169]/30 text-[#38a169] font-mono text-[10px] font-bold">
-                    100% VERIFIED
-                  </span>
-                </div>
+            {/* ── RIGHT / SUPPORTING: OPERATIONAL DESK ── */}
+            <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-3.5 min-h-0">
+              {/* 1. Ambulance Status (AMB-01 Main Operational Entity) */}
+              <AmbulanceStatus
+                telemetry={telemetry?.ambulance}
+                signals={telemetry?.signals}
+                id={telemetry?.ambulance.id ?? 'AMB-01'}
+                status={telemetry?.ambulance.status ?? (isConnected ? 'STAGED' : 'DISCONNECTED')}
+                eta={telemetry ? `${telemetry.ambulance.etaSeconds}s` : '02:41'}
+                speed={telemetry?.ambulance.speedKmh ?? 42}
+                distanceToTarget={telemetry?.ambulance.distanceToNextSignal ?? 1800}
+              />
 
-                {/* BLOCK 2: SAFETY */}
-                <div className="bg-[#171717] border border-[#242424] rounded p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#737373] block">
-                      SAFETY INTERLOCK
-                    </span>
-                    <span className="font-headline font-bold text-[17px] text-[#F5F5F5]">
-                      {safetyValidation?.allSafe ? 'SAFE' : 'NOMINAL'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#38a169]/15 border border-[#38a169]/30 text-[#38a169] font-mono text-[10px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#38a169]" />
-                    ALL CONFLICTS RESOLVED
-                  </div>
-                </div>
+              {/* 2. Signal Interlock Status */}
+              <SignalStatus
+                signals={telemetry?.signals}
+              />
 
-                {/* BLOCK 3: SUMO / TraCI */}
-                <div className="bg-[#171717] border border-[#242424] rounded p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-[#737373] block">
-                      SIMULATION ENGINE
-                    </span>
-                    <span className="font-headline font-bold text-[17px] text-[#F5F5F5]">
-                      {isConnected ? 'CONNECTED' : 'LOCAL SIMULATOR'}
-                    </span>
-                  </div>
-                  <span className="px-2.5 py-1 rounded bg-[#38a169]/15 border border-[#38a169]/30 text-[#38a169] font-mono text-[10px] font-bold">
-                    REALTIME FEED
-                  </span>
-                </div>
-              </div>
+              {/* 3. Safety Gate (Prominent ResQX Differentiator) */}
+              <SafetyGateCard
+                safetyValidation={safetyValidation}
+              />
 
-              {/* LOWER GRID: EVENT TIMELINE (LEFT 7 COLS) + AI DECISION & POLICE (RIGHT 5 COLS) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
-                <div className="lg:col-span-7 flex flex-col">
-                  <EventTimeline events={pipelineEvents} telemetry={telemetry} isRunning={isRunning} />
-                </div>
+              {/* 4. Police Coordination */}
+              <PoliceCoordinationCard
+                assignments={policeAssignments}
+                dispatchedAlerts={dispatchedAlerts}
+                telemetry={telemetry}
+              />
 
-                <div className="lg:col-span-5 flex flex-col gap-3">
-                  <AIRecommendationCard
-                    recommendation={recommendation}
-                    onExecute={handleExecuteRecommendation}
-                    onDismiss={() => {
-                      const typePrefix = recommendation.id.split('-')[0] + '-' + recommendation.id.split('-')[1];
-                      setDismissedRecId(typePrefix);
-                    }}
-                  />
-                  <PoliceCoordinationCard
-                    assignments={policeAssignments}
-                    dispatchedAlerts={dispatchedAlerts}
-                    telemetry={telemetry}
-                  />
-                </div>
-              </div>
+              {/* 5. AI Decision Engine & Operator Override */}
+              <AIRecommendationCard
+                recommendation={recommendation}
+                onExecute={handleExecuteRecommendation}
+                onDismiss={() => {
+                  const typePrefix =
+                    recommendation.id.split('-')[0] + '-' + recommendation.id.split('-')[1];
+                  setDismissedRecId(typePrefix);
+                }}
+              />
+
+              {/* 6. Live Sensor Telemetry */}
+              <LiveTelemetryCard
+                telemetry={telemetry}
+                connectionStatus={connectionStatus}
+              />
             </div>
           </div>
         )}

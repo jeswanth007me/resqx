@@ -1,4 +1,8 @@
+import { TrafficCone } from 'lucide-react';
 import type { TelemetrySignal } from '../types/telemetry';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Tooltip } from './ui/tooltip';
 
 interface SignalStatusProps {
   signals?: TelemetrySignal[];
@@ -29,98 +33,96 @@ export function SignalStatus({ signals }: SignalStatusProps) {
       isPreparing,
       isRestored,
       distance: s?.distanceFromAmbulance ?? 0,
-      state: s?.state ?? 'rrrrGG',
     };
   });
 
-  return (
-    <div className="bg-[#171717] border border-[#242424] rounded p-4 flex flex-col justify-between select-none">
-      <div>
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#242424]">
-          <span className="font-mono text-[11px] font-bold tracking-widest text-[#F5F5F5] uppercase">
-            TRAFFIC SIGNALS
-          </span>
-          <span className="font-mono text-[10px] text-[#38a169] font-semibold">
-            4 / 4 UNDER CONTROL
-          </span>
-        </div>
+  const activePriorityCount = signalList.filter((s) => s.isPriority).length;
 
-        {/* 4 Spacious Signal Rows */}
-        <div className="flex flex-col gap-2">
+  return (
+    <Card className="border-gray-800 bg-gray-900/95 flex flex-col justify-between">
+      <div>
+        <CardHeader className="py-2.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <TrafficCone className="w-4 h-4 text-emerald-400" />
+            <CardTitle className="text-gray-100">Signal Status</CardTitle>
+            <Tooltip content="Cascaded emergency corridor signal preemption states">
+              <span className="text-[10px] text-gray-500 font-mono cursor-help">ⓘ</span>
+            </Tooltip>
+          </div>
+          <Badge variant={activePriorityCount > 0 ? 'success' : 'secondary'}>
+            {activePriorityCount > 0 ? `${activePriorityCount} Active Priority` : '4 Monitored'}
+          </Badge>
+        </CardHeader>
+
+        <CardContent className="p-3.5 space-y-2 font-mono">
           {signalList.map((sig) => {
-            let badgeText = 'NORMAL';
-            let badgeBg = 'bg-[#1e1e1e] text-[#737373] border-[#2a2a2a]';
-            let greenBulb = '#262626';
-            let yellowBulb = '#262626';
-            let redBulb = '#d04848';
+            let badgeVariant: 'success' | 'warning' | 'info' | 'secondary' = 'secondary';
+            let badgeLabel = 'NORMAL';
+            let cardStyle = 'bg-gray-950/70 border-gray-800/80 text-gray-300';
+            let iconColor = 'text-gray-500';
 
             if (sig.isPriority) {
-              badgeText = 'PRIORITY';
-              badgeBg = 'bg-[#38a169]/15 text-[#38a169] border-[#38a169]/30';
-              greenBulb = '#38a169';
-              redBulb = '#262626';
+              badgeVariant = 'success';
+              badgeLabel = 'EMERGENCY PRIORITY';
+              cardStyle = 'bg-emerald-950/20 border-emerald-700/60 ring-1 ring-emerald-500/30 text-emerald-200';
+              iconColor = 'text-emerald-400';
             } else if (sig.isPreparing) {
-              badgeText = 'PREPARING';
-              badgeBg = 'bg-[#d97706]/15 text-[#d97706] border-[#d97706]/30';
-              yellowBulb = '#d97706';
-              redBulb = '#262626';
+              badgeVariant = 'warning';
+              badgeLabel = 'PREPARING';
+              cardStyle = 'bg-amber-950/20 border-amber-700/50 text-amber-200';
+              iconColor = 'text-amber-400';
             } else if (sig.isRestored) {
-              badgeText = 'RESTORED';
-              badgeBg = 'bg-[#38a169]/15 text-[#38a169] border-[#38a169]/30';
-              greenBulb = '#38a169';
-              redBulb = '#262626';
+              badgeVariant = 'info';
+              badgeLabel = 'RESTORED';
+              // Visually quieter / dimmed styling for restored signals
+              cardStyle = 'bg-gray-950/40 border-gray-800/40 opacity-60 text-gray-400';
+              iconColor = 'text-sky-400';
             }
 
             return (
               <div
                 key={sig.id}
-                className="bg-[#141414] border border-[#1e1e1e] hover:border-[#2a2a2a] rounded p-2.5 flex items-center justify-between transition-colors"
+                className={`p-2.5 rounded border transition-all flex items-center justify-between ${cardStyle}`}
               >
                 <div className="flex items-center gap-2.5">
-                  {/* Vertical 3-Light Signal Head Icon */}
-                  <div className="w-3.5 h-8 bg-[#0e0e0e] border border-[#2a2a2a] rounded flex flex-col items-center justify-around py-0.5 shrink-0">
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        redBulb !== '#262626' ? 'bg-[#d04848] shadow-[0_0_4px_#d04848]' : 'bg-[#222222]'
-                      }`}
-                    />
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        yellowBulb !== '#262626' ? 'bg-[#d97706] shadow-[0_0_4px_#d97706]' : 'bg-[#222222]'
-                      }`}
-                    />
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        greenBulb !== '#262626' ? 'bg-[#38a169] shadow-[0_0_4px_#38a169]' : 'bg-[#222222]'
-                      }`}
-                    />
+                  <div className="flex items-center justify-center w-7 h-7 rounded bg-gray-900 border border-gray-800 shrink-0">
+                    <TrafficCone className={`w-3.5 h-3.5 ${iconColor}`} />
                   </div>
 
                   <div>
-                    <div className="font-mono text-[11px] font-bold text-[#F5F5F5] flex items-center gap-1.5">
-                      {sig.id}
-                      <span className="text-[9px] text-[#737373] font-normal">({sig.distance}m)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-100 text-xs tracking-tight">
+                        {sig.id}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {sig.name}
+                      </span>
                     </div>
-                    <div className="font-mono text-[9px] text-[#737373]">{sig.cross}</div>
+                    <div className="text-[10px] text-gray-500">
+                      {sig.cross}
+                    </div>
                   </div>
                 </div>
 
-                <div className={`flex items-center gap-1 px-2 py-0.5 rounded border font-mono text-[9px] font-bold ${badgeBg}`}>
-                  {sig.isPriority && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#38a169] animate-pulse" />
-                  )}
-                  {badgeText}
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant={badgeVariant} className="text-[9px]">
+                    {badgeLabel}
+                  </Badge>
+                  <span className="text-[10px] text-gray-400 font-mono">
+                    {Math.round(sig.distance)}m
+                  </span>
                 </div>
               </div>
             );
           })}
-        </div>
+        </CardContent>
       </div>
 
-      <div className="mt-2.5 pt-2 border-t border-[#242424] font-mono text-[10px] text-[#737373] flex items-center justify-between">
-        <span>Dynamic Phase Preemption</span>
-        <span className="text-[#38a169] font-semibold">100% Interlocked</span>
+      <div className="p-3.5 pt-0 text-[10px] font-mono text-gray-500 border-t border-gray-800/60 mt-1 flex items-center justify-between">
+        <span>Route 4A Arterial Signals</span>
+        <span className="text-emerald-400 font-semibold">Deterministic Control</span>
       </div>
-    </div>
+    </Card>
   );
 }
+
